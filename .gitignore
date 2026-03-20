@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+.env
+
+# SQLite DB
+*.db
+
+# Flutter / Dart
+.build/
+.dart_tool/
+.packages
+pubspec.lock
+
+# Flutter platform folders (optional keep if needed)
+# android/
+# ios/
+# macos/
+# windows/
+# linux/
+
+# IDE
+.vscode/
+.idea/
+
+# Mac
+.DS_Store
