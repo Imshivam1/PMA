@@ -11,11 +11,21 @@ class User(Base):
     password = Column(String)
     role = Column(String)  # "owner" or "manager"
 
+
+class Product(Base):
+    __tablename__ = "products"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String)
+    price = Column(Integer)
+    stock = Column(Integer)
+
+
 class StockRequest(Base):
     __tablename__ = "stock_requests"
 
     id = Column(Integer, primary_key=True, index=True)
     product_id = Column(Integer)
-    requested_by = Column(Integer)  # user_id
+    requested_by = Column(Integer)
     quantity = Column(Integer)
-    status = Column(String, default="pending")  # pending/approved/rejected
+    status = Column(String, default="pending")

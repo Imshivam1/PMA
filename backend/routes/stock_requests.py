@@ -15,7 +15,7 @@ def get_db():
         db.close()
 
 
-# 🟡 Manager creates request
+# Manager creates request
 @router.post("/")
 def create_request(product_id: int, quantity: int, user=Depends(manager_required), db: Session = Depends(get_db)):
     request = StockRequest(
@@ -27,10 +27,12 @@ def create_request(product_id: int, quantity: int, user=Depends(manager_required
     db.commit()
     return {"message": "Request created"}
 
+#owner view request
 @router.get("/")
 def get_requests(user=Depends(owner_required), db: Session = Depends(get_db)):
     return db.query(StockRequest).all()
 
+#approve/reject
 @router.put("/{request_id}")
 def update_request(request_id: int, status: str, user=Depends(owner_required), db: Session = Depends(get_db)):
     request = db.query(StockRequest).filter(StockRequest.id == request_id).first()
