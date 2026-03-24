@@ -2,7 +2,7 @@ from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
 
-SECRET_KEY = "your-secret-key"  # must match security.py
+SECRET_KEY = "super-secret-key-change-this"  # must match security.py
 ALGORITHM = "HS256"
 
 security = HTTPBearer()

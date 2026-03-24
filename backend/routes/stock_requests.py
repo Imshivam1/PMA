@@ -40,13 +40,22 @@ def update_request(request_id: int, status: str, user=Depends(owner_required), d
     if not request:
         raise HTTPException(status_code=404, detail="Request not found")
 
-    request.status = status
-
     # ✅ If approved → update stock
     if status == "approved":
         product = db.query(Product).filter(Product.id == request.product_id).first()
-        if product:
-            product.stock -= request.quantity
+
+        if not product:
+            raise HTTPException(status_code=404, detail="Product not found")
+
+        # 🔥 VALIDATION (THIS IS THE RIGHT PLACE)
+        if product.stock < request.quantity:
+            raise HTTPException(status_code=400, detail="Not enough stock")
+
+        product.stock -= request.quantity
+
+    # update status AFTER logic
+    request.status = status
 
     db.commit()
+
     return {"message": f"Request {status}"}
