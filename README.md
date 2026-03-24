@@ -1,184 +1,130 @@
-# 🏪 PMA — Product Management & Billing App
+# 📱 PMA — Phone-based POS & Inventory System
 
-A full-stack **mobile-first POS (Point of Sale) + Inventory Management System** built using:
+## 🚀 Overview
 
-* ⚡ FastAPI (Backend)
-* 📱 Flutter (Frontend)
-* 🗄 SQLite (Currently, moving to production DB)
-* 🔐 JWT Authentication (In Progress)
+PMA (Phone Management Application) is a mobile-first POS + inventory system designed to replace traditional laptop/register-based shop management.
 
----
-
-# 🚀 Vision
-
-To replace traditional shop systems where:
-
-* ❌ Shopkeepers rely on laptops or manual registers
-* ❌ No real-time inventory tracking
-* ❌ No role-based control
-
-With a **mobile-first smart POS system** where everything is handled via phone.
+The goal is simple:
+👉 Enable shopkeepers to manage everything directly from their phone
+👉 Add accountability and control to inventory operations
 
 ---
 
-# ✨ Features (Planned + In Progress)
+## ✨ Core Features (Built So Far)
 
-## ✅ Completed
+### 🔐 Authentication System
 
-* 📦 Inventory Listing (Real-time via API)
-* ➕ Add Product (Full stack integration)
-* 🔄 Auto-refresh UI after updates
-* 🌐 Backend-Frontend Integration (Flutter ↔ FastAPI)
-* 🧱 Clean modular architecture (models, services, routes)
+* User Registration & Login (FastAPI)
+* JWT-based authentication
+* Secure password hashing (bcrypt)
 
 ---
 
-## 🚧 In Progress
+### 👥 Role-Based Access Control (RBAC)
 
-* 🔐 JWT Authentication (Owner / Manager login)
-* 👥 Role-Based Access Control (RBAC)
+* **Owner**
 
----
+  * Full control over system
+  * Can add products
+  * Can approve/reject stock requests
 
-## 🔜 Upcoming Features
+* **Manager**
 
-### 🔐 Security & Roles
-
-* Owner & Manager login system
-* Role-based permissions:
-
-  * Owner → Full control
-  * Manager → Limited access
+  * Can view inventory
+  * Cannot directly modify stock
 
 ---
 
-### 📉 Stock Control System
+### 📦 Inventory Management
 
-* Manager cannot directly delete stock
-* Manager creates **stock reduction request**
-* Owner approves/rejects request
-
----
-
-### 🔔 Notification System
-
-* Owner receives approval alerts
-* Pending request badge system
+* Add products (Owner only)
+* View products (Manager + Owner)
+* Database-driven (SQLite + SQLAlchemy)
 
 ---
 
-### 🧾 Billing System
+### 🔄 Stock Approval System (USP Feature)
 
-* Scan & bill products
-* Generate invoice
-* Track daily & weekly sales
+A key differentiator of PMA:
 
----
+> Managers cannot directly reduce stock.
 
-### 📊 Reports
+Flow:
 
-* Weekly sales
-* Product performance
-* Profit tracking
+1. Manager raises stock reduction request
+2. Request is stored as **pending**
+3. Owner reviews request
+4. Owner approves/rejects
+5. If approved → stock updates
 
----
-
-### ☁️ Production Features
-
-* PostgreSQL / Cloud DB
-* Deployment (Render / AWS)
-* Secure environment configs
+✅ Adds accountability
+✅ Prevents misuse
+✅ Tracks every inventory change
 
 ---
 
-# 🏗 Project Structure
-
-## Root
-
-```
-PMA/
-├── backend/       # FastAPI backend
-└── shop_app/      # Flutter app
-```
-
----
-
-## 🔙 Backend (FastAPI)
-
-```
-backend/
-├── main.py
-├── database.py
-├── models.py
-├── schemas.py
-│
-├── core/
-│   └── security.py        # JWT + password hashing
-│
-├── routes/
-│   ├── auth.py           # Login & Register
-│   ├── products.py       # Inventory APIs
-│   ├── sales.py
-│   └── reports.py
-│
-├── shop.db               # SQLite DB (temporary)
-└── venv/
-```
-
----
-
-## 📱 Frontend (Flutter)
-
-```
-shop_app/
-├── lib/
-│   ├── main.dart
-│   │
-│   ├── models/
-│   │   └── product.dart
-│   │
-│   ├── services/
-│   │   └── api_service.dart
-│   │
-│   └── screens/
-│       └── inventory_screen.dart
-│
-├── pubspec.yaml
-```
-
----
-
-# 🔄 Current Workflow
+## 🧱 Tech Stack
 
 ### Backend
 
-* FastAPI server running on:
+* FastAPI
+* SQLAlchemy
+* SQLite
+* JWT (python-jose)
+* Passlib (bcrypt)
 
-```
-http://127.0.0.1:8000
-```
+### Frontend (In Progress)
 
-### Frontend
-
-* Flutter Web connected via API
-* Real-time product fetching & updates
+* Flutter
+* Material UI
+* REST API integration
 
 ---
 
-# 🔧 Setup Instructions
+## 📁 Project Structure
 
-## Backend
+```
+PMA/
+├── backend/
+│   ├── core/
+│   │   ├── security.py
+│   │   └── dependencies.py
+│   ├── routes/
+│   │   ├── auth.py
+│   │   ├── products.py
+│   │   ├── stock_requests.py
+│   │   ├── sales.py
+│   │   └── reports.py
+│   ├── models.py
+│   ├── database.py
+│   ├── main.py
+│   └── shop.db
+│
+├── shop_app/
+│   ├── lib/
+│   └── pubspec.yaml
+│
+└── README.md
+```
+
+---
+
+## ⚙️ How to Run
+
+### Backend
 
 ```bash
 cd backend
 source venv/bin/activate
-pip install -r requirements.txt
 uvicorn main:app --reload
 ```
 
+Open:
+👉 http://127.0.0.1:8000/docs
+
 ---
 
-## Frontend
+### Flutter App
 
 ```bash
 cd shop_app
@@ -188,52 +134,59 @@ flutter run
 
 ---
 
-# 🧠 Architecture Highlights
+## 🧪 Current API Flow
 
-* Clean separation: UI → Service → API → DB
-* Scalable backend structure
-* Stateless authentication (JWT)
-* Future-ready for microservices
+### Auth
 
----
+* `POST /auth/register`
+* `POST /auth/login`
 
-# 📈 Progress Tracker
+### Products
 
-| Feature               | Status         |
-| --------------------- | -------------- |
-| Inventory API         | ✅ Done         |
-| Add Product           | ✅ Done         |
-| Flutter Integration   | ✅ Done         |
-| JWT Auth              | 🚧 In Progress |
-| Role-Based Access     | 🚧 In Progress |
-| Stock Approval System | ⏳ Planned      |
-| Billing System        | ⏳ Planned      |
+* `GET /products/` (Manager + Owner)
+* `POST /products/` (Owner only)
+
+### Stock Requests
+
+* `POST /requests/` (Manager)
+* `GET /requests/` (Owner)
+* `PUT /requests/{id}` (Owner approve/reject)
 
 ---
 
-# 👨‍💻 Author
+## 🚧 Work In Progress
+
+* Flutter Login Screen (JWT integration)
+* Inventory UI connected to backend
+* Approval UI for owners
+* Notifications system
+* Sales & analytics dashboard
+
+---
+
+## 🎯 Vision
+
+PMA aims to evolve into a full SaaS product for small and medium retail businesses:
+
+* 📊 Smart reports & analytics
+* 🔔 Real-time notifications
+* ☁️ Cloud sync
+* 🧾 Billing system
+* 📱 Fully mobile-first experience
+
+---
+
+## 👨‍💻 Author
 
 **Shivam Kumar Manjhi**
-
-* 💻 Full Stack Developer
-* 🚀 Building scalable real-world systems
-* 📍 India
+Full Stack Developer (Flutter + FastAPI)
 
 ---
 
-# ⭐ Future Scope
+## 📌 Status
 
-This project is designed to evolve into:
-
-* Multi-shop SaaS platform
-* Cloud-based POS system
-* AI-powered inventory predictions
-
----
-
-# ⚡ Note
-
-This is an actively developed project.
-README will be updated with each major milestone.
+🚧 Actively under development
+🔥 Core backend architecture completed
+📱 Frontend integration in progress
 
 ---
