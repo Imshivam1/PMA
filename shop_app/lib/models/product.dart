@@ -13,10 +13,10 @@ class Product {
 
   factory Product.fromJson(Map<String, dynamic> json) {
     return Product(
-      id: json['id'],
-      name: json['name'],
-      price: json['price'],
-      stock: json['stock'],
+      id: json["id"],
+      name: json["name"],
+      price: json["price"],
+      stock: json["stock"],
     );
   }
 }
