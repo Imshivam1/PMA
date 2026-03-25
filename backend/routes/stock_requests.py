@@ -21,7 +21,7 @@ def create_request(product_id: int, quantity: int, user=Depends(manager_required
     request = StockRequest(
         product_id=product_id,
         quantity=quantity,
-        requested_by=user["user_id"]
+        manager_id=user.id
     )
     db.add(request)
     db.commit()

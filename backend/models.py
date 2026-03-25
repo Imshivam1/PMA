@@ -11,6 +11,8 @@ class User(Base):
     password = Column(String)
     role = Column(String)  # "owner" or "manager"
 
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
 
 class Product(Base):
     __tablename__ = "products"
@@ -29,3 +31,5 @@ class StockRequest(Base):
     requested_by = Column(Integer)
     quantity = Column(Integer)
     status = Column(String, default="pending")
+
+    manager_id = Column(Integer, ForeignKey("users.id"))
