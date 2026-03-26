@@ -1,157 +1,173 @@
-📱 PMA — Phone-based POS & Inventory System
-🚀 Overview
+# 🚀 PMA — Product Update: Stock Request & Approval System
 
-PMA (Phone Management Application) is a mobile-first POS + inventory system designed to eliminate dependency on laptops, registers, and manual tracking.
+## 📌 Overview
 
-🎯 Built for shopkeepers who want speed, control, and accountability — directly from their phone
+This update introduces one of the **core business features** of PMA — a complete **Stock Request & Approval Workflow**.
 
-✨ Core Features
-🔐 Authentication & Security
-User Registration & Login (FastAPI)
-JWT-based authentication (Token-based access)
-Secure password hashing using bcrypt
-Protected routes with dependency-based auth system
-👥 Role-Based Access Control (RBAC)
+The system now supports real-world retail operations where:
 
-A strict and scalable role system:
+* Managers request stock adjustments
+* Owners review and approve/reject requests
+* Inventory updates automatically based on decisions
 
-🧑‍💼 Owner
-Full system access
-Add & manage products
-Approve/reject stock requests
-View all requests & operations
-👨‍🔧 Manager
-View inventory
-Raise stock modification requests
-Cannot directly change stock
+---
 
-🔒 All sensitive actions are restricted via role validation middleware
+## ✨ Features Implemented
 
-📦 Inventory Management
-Add products (Owner only)
-View products (Owner + Manager)
-Structured database using SQLAlchemy ORM
-Scalable schema design for future analytics
-🔄 Stock Request & Approval System (🔥 USP)
+### 🔐 Role-Based Workflow
 
-💡 Core Innovation of PMA
+* **Manager**
 
-Unlike traditional POS systems:
+  * Can view products
+  * Can create stock requests
 
-❌ Managers cannot directly modify stock
-✅ Every stock change is controlled & tracked
+* **Owner**
 
-⚙️ Workflow
-Manager creates a stock request
-Request is stored with PENDING status
-Owner reviews the request
-Owner APPROVES / REJECTS
-If approved → stock updates automatically
-✅ Benefits
-Full accountability
-Prevents inventory misuse
-Audit trail for every change
-Real-world business control logic
-📡 Request Tracking System
-Status-based tracking:
-PENDING
-APPROVED
-REJECTED
-Linked with user roles
-Designed for future notification system
-🧱 Tech Stack
-⚙️ Backend
-FastAPI — High-performance API framework
-SQLAlchemy — ORM for database handling
-SQLite — Lightweight DB (dev phase)
-JWT (python-jose) — Authentication
-Passlib (bcrypt) — Password security
-📱 Frontend (In Progress)
-Flutter
-Material UI
-REST API integration
-📁 Project Structure
-PMA/
-├── backend/
-│   ├── core/
-│   │   ├── security.py        # JWT + hashing
-│   │   └── dependencies.py    # Auth + role guards
-│   │
-│   ├── routes/
-│   │   ├── auth.py
-│   │   ├── products.py
-│   │   ├── stock_requests.py
-│   │   ├── sales.py
-│   │   └── reports.py
-│   │
-│   ├── models.py              # DB models
-│   ├── database.py            # DB connection
-│   ├── main.py                # Entry point
-│   └── shop.db
-│
-├── shop_app/
-│   ├── lib/
-│   └── pubspec.yaml
-│
-└── README.md
-⚙️ Setup & Run
-🔧 Backend
-cd backend
+  * Can create products
+  * Can approve/reject requests
+  * Controls inventory flow
 
-# activate virtual environment
-source venv/bin/activate
+---
 
-# run server
-uvicorn main:app --reload
+### 📦 Product Management (Database-Based)
 
-📍 API Docs:
-👉 http://127.0.0.1:8000/docs
+* Migrated from in-memory storage → **SQL database**
+* Product model includes:
 
-📱 Flutter App
-cd shop_app
-flutter pub get
-flutter run
-🔌 API Endpoints
-🔐 Authentication
-POST /auth/register → Register new user
-POST /auth/login → Login & get JWT token
-📦 Products
-GET /products/ → View products (Owner + Manager)
-POST /products/ → Add product (Owner only)
-🔄 Stock Requests
-POST /requests/ → Create request (Manager)
-GET /requests/ → View all requests (Owner)
-PUT /requests/{id} → Approve/Reject (Owner)
-🧠 System Design Highlights
-🔐 Dependency-based authentication (FastAPI)
-🧩 Modular route structure
-🛡️ Role validation at API level
-🔄 Event-driven inventory updates
-📈 Designed for scaling to microservices
-🚧 Work In Progress
-Flutter JWT Authentication flow
-Inventory UI integration
-Owner approval dashboard
-Push notifications system
-Sales tracking & analytics
-Multi-shop support (future SaaS)
-🎯 Vision
+  * `id`
+  * `name`
+  * `price`
+  * `stock`
 
-PMA is being built as a full SaaS platform for retail businesses:
+---
 
-📊 Smart analytics & reports
-🔔 Real-time notifications
-☁️ Cloud-based sync
-🧾 Billing & invoice system
-📱 100% mobile-first operations
-👨‍💻 Author
+### 📩 Stock Request System
 
-Shivam Kumar Manjhi
-Full Stack Developer (Flutter + FastAPI)
-🚀 Building scalable real-world systems
+Managers can create requests:
 
-📌 Status
+* Linked to a specific product
+* Includes requested quantity
+* Automatically assigned status:
 
-🚧 Actively under development
-🔥 Backend architecture stable
-📱 Frontend integration ongoing
+  * `pending`
+
+---
+
+### ✅ Approval System (Core Logic)
+
+When an owner updates request status:
+
+* **If approved:**
+
+  * Product stock is reduced automatically
+* **If rejected:**
+
+  * No changes to inventory
+
+---
+
+## 🔁 Request Lifecycle
+
+```text
+Manager → Create Request → Status: pending
+        ↓
+Owner → Approve / Reject
+        ↓
+System → Update Inventory (if approved)
+```
+
+---
+
+## ⚙️ API Endpoints
+
+### 📦 Products
+
+* `GET /products/` → View products (Manager/Owner)
+* `POST /products/` → Add product (Owner only)
+
+---
+
+### 📩 Stock Requests
+
+* `POST /requests/` → Create request (Manager)
+* `GET /requests/` → View requests
+* `PUT /requests/{id}` → Approve/Reject (Owner)
+
+---
+
+## 🧠 Core Business Logic
+
+```python
+if status == "approved":
+    product.stock -= request.quantity
+```
+
+This ensures:
+
+* Real-time inventory control
+* Data consistency
+* Role-based accountability
+
+---
+
+## ⚠️ Important Notes
+
+* Database reset required after schema updates:
+
+  ```bash
+  rm shop.db
+  uvicorn main:app --reload
+  ```
+
+* Authentication required for all protected routes (JWT-based)
+
+---
+
+## 📈 Current Progress
+
+### ✅ Completed
+
+* Authentication (JWT)
+* Role-based access (Owner / Manager)
+* Product management (DB integrated)
+* Stock request system
+* Approval workflow with inventory update
+
+---
+
+### 🚧 In Progress
+
+* Flutter UI integration with backend
+* Token persistence (auto-login)
+* Profile & logout system
+
+---
+
+### 🔮 Upcoming
+
+* Multi-owner support with separate managers
+* Analytics & reporting dashboard
+* AI-powered inventory insights
+
+---
+
+## 💡 Vision
+
+PMA is evolving into a **mobile-first smart POS system** where:
+
+* Shopkeepers manage everything from their phone
+* Inventory is controlled with accountability
+* AI will assist in decision-making
+
+---
+
+## 🤝 Contribution & Feedback
+
+This project is actively evolving. Feedback and ideas are always welcome!
+
+---
+
+## 🧑‍💻 Author
+
+**Shivam Kumar Manjhi**
+Building practical, scalable systems with real-world impact 🚀
