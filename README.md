@@ -1,103 +1,92 @@
-# 📱 PMA — Phone-based POS & Inventory System
+📱 PMA — Phone-based POS & Inventory System
+🚀 Overview
 
-## 🚀 Overview
+PMA (Phone Management Application) is a mobile-first POS + inventory system designed to eliminate dependency on laptops, registers, and manual tracking.
 
-PMA (Phone Management Application) is a mobile-first POS + inventory system designed to replace traditional laptop/register-based shop management.
+🎯 Built for shopkeepers who want speed, control, and accountability — directly from their phone
 
-The goal is simple:
-👉 Enable shopkeepers to manage everything directly from their phone
-👉 Add accountability and control to inventory operations
+✨ Core Features
+🔐 Authentication & Security
+User Registration & Login (FastAPI)
+JWT-based authentication (Token-based access)
+Secure password hashing using bcrypt
+Protected routes with dependency-based auth system
+👥 Role-Based Access Control (RBAC)
 
----
+A strict and scalable role system:
 
-## ✨ Core Features (Built So Far)
+🧑‍💼 Owner
+Full system access
+Add & manage products
+Approve/reject stock requests
+View all requests & operations
+👨‍🔧 Manager
+View inventory
+Raise stock modification requests
+Cannot directly change stock
 
-### 🔐 Authentication System
+🔒 All sensitive actions are restricted via role validation middleware
 
-* User Registration & Login (FastAPI)
-* JWT-based authentication
-* Secure password hashing (bcrypt)
+📦 Inventory Management
+Add products (Owner only)
+View products (Owner + Manager)
+Structured database using SQLAlchemy ORM
+Scalable schema design for future analytics
+🔄 Stock Request & Approval System (🔥 USP)
 
----
+💡 Core Innovation of PMA
 
-### 👥 Role-Based Access Control (RBAC)
+Unlike traditional POS systems:
 
-* **Owner**
+❌ Managers cannot directly modify stock
+✅ Every stock change is controlled & tracked
 
-  * Full control over system
-  * Can add products
-  * Can approve/reject stock requests
-
-* **Manager**
-
-  * Can view inventory
-  * Cannot directly modify stock
-
----
-
-### 📦 Inventory Management
-
-* Add products (Owner only)
-* View products (Manager + Owner)
-* Database-driven (SQLite + SQLAlchemy)
-
----
-
-### 🔄 Stock Approval System (USP Feature)
-
-A key differentiator of PMA:
-
-> Managers cannot directly reduce stock.
-
-Flow:
-
-1. Manager raises stock reduction request
-2. Request is stored as **pending**
-3. Owner reviews request
-4. Owner approves/rejects
-5. If approved → stock updates
-
-✅ Adds accountability
-✅ Prevents misuse
-✅ Tracks every inventory change
-
----
-
-## 🧱 Tech Stack
-
-### Backend
-
-* FastAPI
-* SQLAlchemy
-* SQLite
-* JWT (python-jose)
-* Passlib (bcrypt)
-
-### Frontend (In Progress)
-
-* Flutter
-* Material UI
-* REST API integration
-
----
-
-## 📁 Project Structure
-
-```
+⚙️ Workflow
+Manager creates a stock request
+Request is stored with PENDING status
+Owner reviews the request
+Owner APPROVES / REJECTS
+If approved → stock updates automatically
+✅ Benefits
+Full accountability
+Prevents inventory misuse
+Audit trail for every change
+Real-world business control logic
+📡 Request Tracking System
+Status-based tracking:
+PENDING
+APPROVED
+REJECTED
+Linked with user roles
+Designed for future notification system
+🧱 Tech Stack
+⚙️ Backend
+FastAPI — High-performance API framework
+SQLAlchemy — ORM for database handling
+SQLite — Lightweight DB (dev phase)
+JWT (python-jose) — Authentication
+Passlib (bcrypt) — Password security
+📱 Frontend (In Progress)
+Flutter
+Material UI
+REST API integration
+📁 Project Structure
 PMA/
 ├── backend/
 │   ├── core/
-│   │   ├── security.py
-│   │   └── dependencies.py
+│   │   ├── security.py        # JWT + hashing
+│   │   └── dependencies.py    # Auth + role guards
+│   │
 │   ├── routes/
 │   │   ├── auth.py
 │   │   ├── products.py
 │   │   ├── stock_requests.py
 │   │   ├── sales.py
 │   │   └── reports.py
-│   ├── models.py
-│   ├── database.py
-│   ├── main.py
+│   │
+│   ├── models.py              # DB models
+│   ├── database.py            # DB connection
+│   ├── main.py                # Entry point
 │   └── shop.db
 │
 ├── shop_app/
@@ -105,88 +94,64 @@ PMA/
 │   └── pubspec.yaml
 │
 └── README.md
-```
-
----
-
-## ⚙️ How to Run
-
-### Backend
-
-```bash
+⚙️ Setup & Run
+🔧 Backend
 cd backend
-source venv/bin/activate
-uvicorn main:app --reload
-```
 
-Open:
+# activate virtual environment
+source venv/bin/activate
+
+# run server
+uvicorn main:app --reload
+
+📍 API Docs:
 👉 http://127.0.0.1:8000/docs
 
----
-
-### Flutter App
-
-```bash
+📱 Flutter App
 cd shop_app
 flutter pub get
 flutter run
-```
+🔌 API Endpoints
+🔐 Authentication
+POST /auth/register → Register new user
+POST /auth/login → Login & get JWT token
+📦 Products
+GET /products/ → View products (Owner + Manager)
+POST /products/ → Add product (Owner only)
+🔄 Stock Requests
+POST /requests/ → Create request (Manager)
+GET /requests/ → View all requests (Owner)
+PUT /requests/{id} → Approve/Reject (Owner)
+🧠 System Design Highlights
+🔐 Dependency-based authentication (FastAPI)
+🧩 Modular route structure
+🛡️ Role validation at API level
+🔄 Event-driven inventory updates
+📈 Designed for scaling to microservices
+🚧 Work In Progress
+Flutter JWT Authentication flow
+Inventory UI integration
+Owner approval dashboard
+Push notifications system
+Sales tracking & analytics
+Multi-shop support (future SaaS)
+🎯 Vision
 
----
+PMA is being built as a full SaaS platform for retail businesses:
 
-## 🧪 Current API Flow
+📊 Smart analytics & reports
+🔔 Real-time notifications
+☁️ Cloud-based sync
+🧾 Billing & invoice system
+📱 100% mobile-first operations
+👨‍💻 Author
 
-### Auth
-
-* `POST /auth/register`
-* `POST /auth/login`
-
-### Products
-
-* `GET /products/` (Manager + Owner)
-* `POST /products/` (Owner only)
-
-### Stock Requests
-
-* `POST /requests/` (Manager)
-* `GET /requests/` (Owner)
-* `PUT /requests/{id}` (Owner approve/reject)
-
----
-
-## 🚧 Work In Progress
-
-* Flutter Login Screen (JWT integration)
-* Inventory UI connected to backend
-* Approval UI for owners
-* Notifications system
-* Sales & analytics dashboard
-
----
-
-## 🎯 Vision
-
-PMA aims to evolve into a full SaaS product for small and medium retail businesses:
-
-* 📊 Smart reports & analytics
-* 🔔 Real-time notifications
-* ☁️ Cloud sync
-* 🧾 Billing system
-* 📱 Fully mobile-first experience
-
----
-
-## 👨‍💻 Author
-
-**Shivam Kumar Manjhi**
+Shivam Kumar Manjhi
 Full Stack Developer (Flutter + FastAPI)
+🚀 Building scalable real-world systems
 
----
-
-## 📌 Status
+📌 Status
 
 🚧 Actively under development
-🔥 Core backend architecture completed
-📱 Frontend integration in progress
-
----
+🔥 Backend architecture stable
+📱 Frontend integration ongoing
