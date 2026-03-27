@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from database import SessionLocal
 from models import Product
 from core.dependencies import manager_required, owner_required
+from schemas import ProductCreate, ProductResponse
 
 router = APIRouter(tags=["Products"])
 
@@ -16,20 +17,29 @@ def get_db():
 
 
 # ✅ GET products (manager + owner)
-@router.get("/")
-def get_products(user=Depends(manager_required), db: Session = Depends(get_db)):
+@router.get("/", response_model=list[ProductResponse])
+def get_products(
+    db: Session = Depends(get_db),
+    user=Depends(manager_required)
+):
     return db.query(Product).all()
 
 
 # ✅ ADD product (owner only)
-@router.post("/")
-def add_product(product: dict = Body(...), user=Depends(owner_required), db: Session = Depends(get_db)):
+@router.post("/", response_model=ProductResponse)
+def add_product(
+    product: ProductCreate,
+    db: Session = Depends(get_db),
+    user=Depends(owner_required)
+):
     new_product = Product(
-        name=product["name"],
-        price=product["price"],
-        stock=product["stock"]
+        name=product.name,
+        price=product.price,
+        stock=product.stock
     )
+
     db.add(new_product)
     db.commit()
     db.refresh(new_product)
+
     return new_product

@@ -34,28 +34,38 @@ def get_requests(user=Depends(owner_required), db: Session = Depends(get_db)):
 
 #approve/reject
 @router.put("/{request_id}")
-def update_request(request_id: int, status: str, user=Depends(owner_required), db: Session = Depends(get_db)):
-    request = db.query(StockRequest).filter(StockRequest.id == request_id).first()
+def update_request(
+    request_id: int,
+    status: str,
+    user=Depends(owner_required),
+    db: Session = Depends(get_db)
+):
+    stock_request = db.query(StockRequest).filter(StockRequest.id == request_id).first()
 
-    if not request:
+    if not stock_request:
         raise HTTPException(status_code=404, detail="Request not found")
+
+    # 🔒 Prevent double processing
+    if stock_request.status != "pending":
+        raise HTTPException(status_code=400, detail="Request already processed")
+
+    # 🔒 Validate status
+    if status not in ["approved", "rejected"]:
+        raise HTTPException(status_code=400, detail="Invalid status")
 
     # ✅ If approved → update stock
     if status == "approved":
-        product = db.query(Product).filter(Product.id == request.product_id).first()
+        product = db.query(Product).filter(Product.id == stock_request.product_id).first()
 
         if not product:
             raise HTTPException(status_code=404, detail="Product not found")
 
-        # 🔥 VALIDATION (THIS IS THE RIGHT PLACE)
-        if product.stock < request.quantity:
+        if product.stock < stock_request.quantity:
             raise HTTPException(status_code=400, detail="Not enough stock")
 
-        product.stock -= request.quantity
+        product.stock -= stock_request.quantity
 
-    # update status AFTER logic
-    request.status = status
-
+    stock_request.status = status
     db.commit()
 
     return {"message": f"Request {status}"}
