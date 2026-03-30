@@ -10,19 +10,19 @@ from database import SessionLocal
 from models import User
 
 # =========================
-# 🔐 JWT CONFIG
+# JWT CONFIG
 # =========================
 SECRET_KEY = "super-secret-key-change-this"  # must match security.py
 ALGORITHM = "HS256"
 
 # =========================
-# 🔑 TOKEN SCHEME (OAuth2)
+# TOKEN SCHEME (OAuth2)
 # =========================
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
 # =========================
-# 🗄️ DB DEPENDENCY
+# DB DEPENDENCY
 # =========================
 def get_db():
     db = SessionLocal()
@@ -33,7 +33,7 @@ def get_db():
 
 
 # =========================
-# 🔐 GET CURRENT USER
+# GET CURRENT USER
 # =========================
 def get_current_user(
     token: str = Depends(oauth2_scheme),
@@ -60,7 +60,7 @@ def get_current_user(
 
 
 # =========================
-# 👑 OWNER ONLY ACCESS
+# OWNER ONLY ACCESS
 # =========================
 def owner_required(current_user: User = Depends(get_current_user)):
     if current_user.role != "owner":
@@ -72,7 +72,7 @@ def owner_required(current_user: User = Depends(get_current_user)):
 
 
 # =========================
-# 👨‍💼 MANAGER OR OWNER ACCESS
+#  MANAGER OR OWNER ACCESS
 # =========================
 def manager_required(current_user: User = Depends(get_current_user)):
     if current_user.role not in ["manager", "owner"]:

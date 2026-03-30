@@ -6,12 +6,13 @@ from core.security import hash_password, verify_password, create_access_token
 from core.dependencies import get_current_user
 from pydantic import BaseModel
 from fastapi.security import OAuth2PasswordRequestForm
+from schemas import LoginResponse
 
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
-# 🔹 DB Dependency
+#  DB Dependency
 def get_db():
     db = SessionLocal()
     try:
@@ -20,7 +21,7 @@ def get_db():
         db.close()
 
 
-# 🔹 Request Schemas
+#  Request Schemas
 class UserCreate(BaseModel):
     name: str
     email: str
@@ -33,7 +34,7 @@ class UserLogin(BaseModel):
     password: str
 
 
-# 🔹 REGISTER
+#  REGISTER
 @router.post("/register")
 def register(user: UserCreate, db: Session = Depends(get_db)):
     existing_user = db.query(User).filter(User.email == user.email).first()
@@ -55,9 +56,9 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     return {"message": "User created"}
 
 
-# 🔹 LOGIN
-@router.post("/login")
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+#  LOGIN
+@router.post("/login", response_model=LoginResponse)
+def login(user: UserLogin, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == form_data.username).first()
 
     if not user or not verify_password(form_data.password, user.password):

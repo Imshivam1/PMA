@@ -16,7 +16,7 @@ def get_db():
         db.close()
 
 
-# ✅ GET products (manager + owner)
+# GET products (manager + owner)
 @router.get("/", response_model=list[ProductResponse])
 def get_products(
     db: Session = Depends(get_db),
@@ -25,7 +25,7 @@ def get_products(
     return db.query(Product).all()
 
 
-# ✅ ADD product (owner only)
+# ADD product (owner only)
 @router.post("/", response_model=ProductResponse)
 def add_product(
     product: ProductCreate,
