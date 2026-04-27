@@ -1,7 +1,7 @@
 import '../models/product.dart';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
-import 'login_screen.dart'; // 🔥 REQUIRED
+import '../widgets/custom_appbar.dart';
 
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});
@@ -11,7 +11,14 @@ class InventoryScreen extends StatefulWidget {
 }
 
 class _InventoryScreenState extends State<InventoryScreen> {
-  late Future<List<Product>> _products;
+  List<Product> _allProducts = [];
+  List<Product> _filteredProducts = [];
+
+  List<dynamic> _suggestions = [];
+  bool _showSuggestions = false;
+
+  bool _isLoading = true;
+  String _error = "";
 
   @override
   void initState() {
@@ -19,57 +26,71 @@ class _InventoryScreenState extends State<InventoryScreen> {
     _loadProducts();
   }
 
-  void _loadProducts() {
+  // =========================
+  // LOAD PRODUCTS
+  // =========================
+  Future<void> _loadProducts() async {
+    try {
+      final data = await ApiService.getProducts();
+
+      setState(() {
+        _allProducts = data;
+        _filteredProducts = data;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  // =========================
+  // LOCAL SEARCH
+  // =========================
+  void _searchProducts(String query) {
+    final q = query.toLowerCase();
+
+    final results = _allProducts.where((product) {
+      final name = product.name.toLowerCase();
+      final brand = (product.brand ?? "").toLowerCase();
+
+      return name.contains(q) || brand.contains(q);
+    }).toList();
+
     setState(() {
-      _products = ApiService.getProducts();
+      _filteredProducts = results;
     });
   }
 
-  // 🔥 LOGOUT DIALOG
-  void _confirmLogout() {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Logout"),
-        content: const Text("Are you sure you want to logout?"),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel"),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              await ApiService.logout();
+  // =========================
+  // API SUGGESTIONS
+  // =========================
+  void _fetchSuggestions(String query) async {
+    if (query.isEmpty) {
+      setState(() {
+        _suggestions = [];
+        _showSuggestions = false;
+      });
+      return;
+    }
 
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-                (route) => false,
-              );
-            },
-            child: const Text("Logout"),
-          ),
-        ],
-      ),
-    );
+    try {
+      final results = await ApiService.searchProducts(query);
+
+      setState(() {
+        _suggestions = results;
+        _showSuggestions = true;
+      });
+    } catch (_) {}
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text("Inventory (${ApiService.role ?? 'user'})"),
+      appBar: const CustomAppBar(title: "Inventory"),
 
-        // 🔥 LOGOUT BUTTON HERE
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _confirmLogout,
-          ),
-        ],
-      ),
-
-      // 👑 Only owner can add product
       floatingActionButton: ApiService.role == "owner"
           ? FloatingActionButton(
               onPressed: _showAddProductDialog,
@@ -77,194 +98,258 @@ class _InventoryScreenState extends State<InventoryScreen> {
             )
           : null,
 
-      body: FutureBuilder<List<Product>>(
-        future: _products,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (snapshot.hasError) {
-            return Center(
-              child: Text(
-                "Error: ${snapshot.error}",
-                style: const TextStyle(color: Colors.red),
+      body: Column(
+        children: [
+          // 🔍 SEARCH BAR
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: TextField(
+              decoration: const InputDecoration(
+                hintText: "Search products (name / brand)...",
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(),
               ),
-            );
-          }
+              onChanged: (value) {
+                _searchProducts(value);
+                _fetchSuggestions(value);
+              },
+            ),
+          ),
 
-          final products = snapshot.data ?? [];
+          // 🔥 SUGGESTIONS
+          if (_showSuggestions)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: _suggestions.length,
+                itemBuilder: (_, index) {
+                  final item = _suggestions[index];
 
-          if (products.isEmpty) {
-            return const Center(child: Text("No products available"));
-          }
+                  return ListTile(
+                    title: Text(item["name"]),
+                    subtitle: Text(item["brand"] ?? ""),
+                    onTap: () {
+                      _searchProducts(item["name"]);
+                      setState(() => _showSuggestions = false);
+                    },
+                  );
+                },
+              ),
+            ),
 
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: products.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final product = products[index];
+          // =========================
+          // PRODUCT LIST
+          // =========================
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _error.isNotEmpty
+                    ? Center(child: Text("Error: $_error"))
+                    : _filteredProducts.isEmpty
+                        ? const Center(child: Text("No products found"))
+                        : RefreshIndicator(
+                            onRefresh: _loadProducts,
+                            child: ListView.separated(
+                              padding: const EdgeInsets.all(16),
+                              itemCount: _filteredProducts.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 12),
+                              itemBuilder: (_, index) {
+                                final product =
+                                    _filteredProducts[index];
 
-              return Card(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                elevation: 3,
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // LEFT SIDE
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            product.name,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text("₹${product.price}"),
-                          Text(
-                            "Stock: ${product.stock}",
-                            style: TextStyle(
-                              color: product.stock < 5
-                                  ? Colors.red
-                                  : Colors.green,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-
-                          // 👨‍💼 Manager Request Button
-                          if (ApiService.role == "manager")
-                            const SizedBox(height: 8),
-
-                            ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, 
-                                  vertical: 6
+                                return Card(
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius:
+                                        BorderRadius.circular(16),
                                   ),
-                                visualDensity: VisualDensity.compact,
-                              ),
-                              onPressed: product.stock == 0
-                              ? null
-                              :() {
-                                _showRequestDialog(product.id);
-                              },
-                              icon: const Icon(Icons.send, size: 18),
-                              label: const Text("Request"),
-                            ),
-                        ],
-                      ),
+                                  elevation: 3,
+                                  child: Padding(
+                                    padding:
+                                        const EdgeInsets.all(12),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        // LEFT
+                                        Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              product.name,
+                                              style:
+                                                  const TextStyle(
+                                                fontSize: 16,
+                                                fontWeight:
+                                                    FontWeight.bold,
+                                              ),
+                                            ),
 
-                      if (product.stock < 5)
-                        const Icon(Icons.warning, color: Colors.red),
-                    ],
-                  ),
-                ),
-              );
-            },
-          );
-        },
+                                            if (product.brand != null &&
+                                                product.brand!
+                                                    .isNotEmpty)
+                                              Text(
+                                                product.brand!,
+                                                style:
+                                                    const TextStyle(
+                                                  fontSize: 13,
+                                                  color: Colors.grey,
+                                                ),
+                                              ),
+
+                                            const SizedBox(height: 4),
+
+                                            Text(
+                                                "₹${product.price}"),
+
+                                            Text(
+                                              "Stock: ${product.stock}",
+                                              style: TextStyle(
+                                                color: product.stock < 5
+                                                    ? Colors.red
+                                                    : Colors.green,
+                                              ),
+                                            ),
+
+                                            // MANAGER BUTTON
+                                            if (ApiService.role ==
+                                                "manager") ...[
+                                              const SizedBox(
+                                                  height: 8),
+                                              ElevatedButton.icon(
+                                                onPressed:
+                                                    product.stock ==
+                                                            0
+                                                        ? null
+                                                        : () {
+                                                            _showRequestDialog(
+                                                                product
+                                                                    .id);
+                                                          },
+                                                icon: const Icon(
+                                                    Icons.send,
+                                                    size: 18),
+                                                label: const Text(
+                                                    "Request"),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+
+                                        // RIGHT
+                                        Row(
+                                          children: [
+                                            if (product.stock < 5)
+                                              const Icon(
+                                                Icons.warning,
+                                                color: Colors.red,
+                                              ),
+
+                                            if (ApiService.role ==
+                                                "owner")
+                                              IconButton(
+                                                icon: const Icon(
+                                                    Icons.delete,
+                                                    color:
+                                                        Colors.red),
+                                                onPressed: () {
+                                                  _confirmDelete(
+                                                    product.id,
+                                                    product.name,
+                                                  );
+                                                },
+                                              ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+          ),
+        ],
       ),
     );
   }
 
-  // ➕ ADD PRODUCT
+  // =========================
+  // DELETE
+  // =========================
+  void _confirmDelete(int id, String name) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Delete Product"),
+        content: Text("Delete '$name'?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await ApiService.deleteProduct(id);
+              _loadProducts();
+            },
+            child: const Text("Delete"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // =========================
+  // ADD PRODUCT
+  // =========================
   void _showAddProductDialog() {
     final nameController = TextEditingController();
+    final brandController = TextEditingController();
     final priceController = TextEditingController();
     final stockController = TextEditingController();
 
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text("Add Product"),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration:
-                    const InputDecoration(labelText: "Product Name"),
-              ),
-              TextField(
-                controller: priceController,
-                decoration: const InputDecoration(labelText: "Price"),
-                keyboardType: TextInputType.number,
-              ),
-              TextField(
-                controller: stockController,
-                decoration: const InputDecoration(labelText: "Stock"),
-                keyboardType: TextInputType.number,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel"),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final price = int.tryParse(priceController.text);
-                final stock = int.tryParse(stockController.text);
-
-                if (nameController.text.isEmpty ||
-                    price == null ||
-                    stock == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Enter valid data")),
-                  );
-                  return;
-                }
-
-                await ApiService.addProduct(
-                  name: nameController.text,
-                  price: price,
-                  stock: stock,
-                );
-
-                Navigator.pop(context);
-                _loadProducts();
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Product Added")),
-                );
-              },
-              child: const Text("Add"),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  // 📩 REQUEST STOCK CHANGE
-  void _showRequestDialog(int productId) {
-    final qtyController = TextEditingController();
-
-    showDialog(
-      context: context,
       builder: (_) => AlertDialog(
-        title: const Text("Request Stock Reduction"),
+        title: const Text("Add Product"),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text("Enter quantity to reduce"),
+            TextField(
+              controller: nameController,
+              decoration:
+                  const InputDecoration(labelText: "Name"),
+            ),
             const SizedBox(height: 8),
             TextField(
-              controller: qtyController,
+              controller: brandController,
+              decoration: const InputDecoration(
+                labelText: "Brand",
+                hintText: "Crocin / Loose / Generic",
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: priceController,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: "Quantity"),
+              decoration:
+                  const InputDecoration(labelText: "Price"),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: stockController,
+              keyboardType: TextInputType.number,
+              decoration:
+                  const InputDecoration(labelText: "Stock"),
             ),
           ],
         ),
@@ -275,19 +360,77 @@ class _InventoryScreenState extends State<InventoryScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
-              final qty = int.tryParse(qtyController.text);
+              final name = nameController.text.trim();
+              final brand = brandController.text.trim();
+              final price = int.tryParse(priceController.text);
+              final stock = int.tryParse(stockController.text);
 
-              if (qty == null || qty <= 0) {
+              if (name.isEmpty ||
+                  price == null ||
+                  stock == null) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Enter valid quantity")),
+                  const SnackBar(
+                      content: Text("Enter valid data")),
                 );
                 return;
               }
+
+              final result = await ApiService.addProduct(
+                name: name,
+                brand: brand,
+                price: price,
+                stock: stock,
+              );
+
+              if (!mounted) return;
+
+              Navigator.pop(context);
+              _loadProducts();
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(result["message"])),
+              );
+            },
+            child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // =========================
+  // REQUEST STOCK
+  // =========================
+  void _showRequestDialog(int productId) {
+    final qtyController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Request Stock"),
+        content: TextField(
+          controller: qtyController,
+          keyboardType: TextInputType.number,
+          decoration:
+              const InputDecoration(labelText: "Quantity"),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final qty = int.tryParse(qtyController.text);
+
+              if (qty == null || qty <= 0) return;
 
               await ApiService.createRequest(
                 productId: productId,
                 quantity: qty,
               );
+
+              if (!mounted) return;
 
               Navigator.pop(context);
 

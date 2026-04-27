@@ -8,8 +8,7 @@ class ApiService {
   // =========================
   // 🌐 BASE CONFIG
   // =========================
-  static const String baseUrl = "http://127.0.0.1:8000";
-
+  static const String baseUrl = "http://localhost:8000";
   static String? token;
   static String? role;
 
@@ -135,26 +134,34 @@ class ApiService {
   // =========================
   // ➕ ADD PRODUCT
   // =========================
-  static Future<void> addProduct({
-    required String name,
-    required int price,
-    required int stock,
-  }) async {
+  static Future<Map<String, dynamic>> addProduct({
+  required String name,
+  required String brand,
+  required int price,
+  required int stock,
+}) async {
+  if (token == null) throw Exception("Not authenticated");
 
-    final response = await http.post(
-      Uri.parse('$baseUrl/products/'),
-      headers: headers,
-      body: jsonEncode({
-        "name": name,
-        "price": price,
-        "stock": stock,
-      }),
-    );
+  final response = await http.post(
+    Uri.parse('$baseUrl/products/'),
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    },
+    body: jsonEncode({
+      "name": name,
+      "brand": brand,
+      "price": price,
+      "stock": stock,
+    }),
+  );
 
-    if (response.statusCode != 200 && response.statusCode != 201) {
-      throw Exception("Failed to add product");
-    }
+  if (response.statusCode == 200 || response.statusCode == 201) {
+    return jsonDecode(response.body); // 🔥 important
+  } else {
+    throw Exception("Failed to add product");
   }
+}
 
   // =========================
   // 📩 CREATE REQUEST
@@ -210,4 +217,120 @@ class ApiService {
       throw Exception("Failed to update request");
     }
   }
+    // =========================
+  // ⛓️ OWNER CREATES MANAGER 
+  // =========================
+  static Future<void> createManager({
+  required String name,
+  required String email,
+  required String password,
+}) async {
+  if (token == null) {
+    throw Exception("Not authenticated");
+  }
+
+  final response = await http.post(
+    Uri.parse('$baseUrl/auth/create-user'),
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    },
+    body: jsonEncode({
+      "name": name,
+      "email": email,
+      "password": password,
+      "role": "manager", // 🔥 forced
+    }),
+  );
+
+  if (response.statusCode != 200 && response.statusCode != 201) {
+    throw Exception("Failed to create manager");
+  }
+}
+ // =========================
+  // OWNER GETS MANAGER DETAILS
+  // =========================
+static Future<List<dynamic>> getManagers() async {
+  if (token == null) throw Exception("Not authenticated");
+
+  final response = await http.get(
+    Uri.parse('$baseUrl/auth/managers'),
+    headers: {
+      'Authorization': 'Bearer $token',
+    },
+  );
+
+  if (response.statusCode == 200) {
+    return jsonDecode(response.body);
+  } else {
+    throw Exception("Failed to load managers");
+  }
+}
+
+// =========================
+  // OWNER Deletes MANAGER profiles
+  // =========================
+
+static Future<void> deleteManager(int id) async {
+  if (token == null) throw Exception("Not authenticated");
+
+  final response = await http.delete(
+    Uri.parse('$baseUrl/auth/managers/$id'),
+    headers: {
+      'Authorization': 'Bearer $token',
+    },
+  );
+
+  if (response.statusCode != 200) {
+    throw Exception("Failed to delete manager");
+  }
+}
+// summary by owner
+static Future<Map<String, dynamic>> getDashboard() async {
+  if (token == null) throw Exception("Not authenticated");
+
+  final response = await http.get(
+    Uri.parse('$baseUrl/reports/summary'),
+    headers: {
+      'Authorization': 'Bearer $token',
+    },
+  );
+
+  if (response.statusCode == 200) {
+    return jsonDecode(response.body);
+  } else {
+    throw Exception("Failed to load dashboard");
+  }
+}
+
+//Deletion of discontinued products
+static Future<void> deleteProduct(int id) async {
+  if (token == null) throw Exception("Not authenticated");
+
+  final response = await http.delete(
+    Uri.parse('$baseUrl/products/$id'),
+    headers: {
+      'Authorization': 'Bearer $token',
+    },
+  );
+
+  if (response.statusCode != 200) {
+    throw Exception("Failed to delete product");
+  }
+}
+
+static Future<List<dynamic>> searchProducts(String query) async {
+  final response = await http.get(
+    Uri.parse('$baseUrl/products/search?query=$query'),
+    headers: {
+      'Authorization': 'Bearer $token',
+    },
+  );
+
+  if (response.statusCode == 200) {
+    return jsonDecode(response.body);
+  } else {
+    throw Exception("Search failed");
+  }
+}
 }
