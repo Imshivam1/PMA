@@ -141,13 +141,21 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
                           // 👨‍💼 Manager Request Button
                           if (ApiService.role == "manager")
-                            TextButton.icon(
-                              style: TextButton.styleFrom(
-                                foregroundColor: Colors.blue,
-                                padding: EdgeInsets.zero,
+                            const SizedBox(height: 8),
+
+                            ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, 
+                                  vertical: 6
+                                  ),
                                 visualDensity: VisualDensity.compact,
                               ),
-                              onPressed: () {
+                              onPressed: product.stock == 0
+                              ? null
+                              :() {
                                 _showRequestDialog(product.id);
                               },
                               icon: const Icon(Icons.send, size: 18),
