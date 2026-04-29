@@ -130,10 +130,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
             ),
           ),
 
-          // 🔥 SUGGESTIONS
+          // 🔥 SUGGESTIONS DROPDOWN
           if (_showSuggestions)
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 12),
+              constraints: const BoxConstraints(maxHeight: 200),
               decoration: BoxDecoration(
                 color: Colors.white,
                 border: Border.all(color: Colors.grey.shade300),
@@ -149,8 +150,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     title: Text(item["name"]),
                     subtitle: Text(item["brand"] ?? ""),
                     onTap: () {
-                      _searchProducts(item["name"]);
                       setState(() => _showSuggestions = false);
+
+                      _showAddProductDialog(
+                        prefillName: item["name"],
+                        prefillBrand: item["brand"] ?? "",
+                      );
                     },
                   );
                 },
@@ -244,11 +249,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   // =========================
-  // ADD PRODUCT (WITH CONFIRMATION)
+  // ADD PRODUCT
   // =========================
-  void _showAddProductDialog() {
-    final nameController = TextEditingController();
-    final brandController = TextEditingController();
+  void _showAddProductDialog({
+    String? prefillName,
+    String? prefillBrand,
+  }) {
+    final nameController =
+        TextEditingController(text: prefillName ?? "");
+    final brandController =
+        TextEditingController(text: prefillBrand ?? "");
     final priceController = TextEditingController();
     final stockController = TextEditingController();
 
@@ -259,13 +269,33 @@ class _InventoryScreenState extends State<InventoryScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: nameController, decoration: const InputDecoration(labelText: "Name")),
+            TextField(
+              controller: nameController,
+              readOnly: prefillName != null,
+              decoration:
+                  const InputDecoration(labelText: "Name"),
+            ),
             const SizedBox(height: 8),
-            TextField(controller: brandController, decoration: const InputDecoration(labelText: "Brand")),
+            TextField(
+              controller: brandController,
+              readOnly: prefillBrand != null,
+              decoration:
+                  const InputDecoration(labelText: "Brand"),
+            ),
             const SizedBox(height: 8),
-            TextField(controller: priceController, keyboardType: TextInputType.number),
+            TextField(
+              controller: priceController,
+              keyboardType: TextInputType.number,
+              decoration:
+                  const InputDecoration(labelText: "Price"),
+            ),
             const SizedBox(height: 8),
-            TextField(controller: stockController, keyboardType: TextInputType.number),
+            TextField(
+              controller: stockController,
+              keyboardType: TextInputType.number,
+              decoration:
+                  const InputDecoration(labelText: "Stock"),
+            ),
           ],
         ),
         actions: [
@@ -273,7 +303,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
             onPressed: () => Navigator.pop(context),
             child: const Text("Cancel"),
           ),
-
           ElevatedButton(
             onPressed: () async {
               final name = nameController.text.trim();
@@ -281,7 +310,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
               final price = int.tryParse(priceController.text);
               final stock = int.tryParse(stockController.text);
 
-              if (name.isEmpty || price == null || stock == null) {
+              if (name.isEmpty ||
+                  price == null ||
+                  stock == null) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text("Enter valid data")),
                 );
@@ -290,7 +321,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
               final existing = _findExistingProduct(name, brand);
 
-              // 🔥 CONFIRM DUPLICATE
               if (existing != null) {
                 final confirm = await showDialog<bool>(
                   context: context,
@@ -301,11 +331,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     ),
                     actions: [
                       TextButton(
-                        onPressed: () => Navigator.pop(context, false),
+                        onPressed: () =>
+                            Navigator.pop(context, false),
                         child: const Text("Cancel"),
                       ),
                       ElevatedButton(
-                        onPressed: () => Navigator.pop(context, true),
+                        onPressed: () =>
+                            Navigator.pop(context, true),
                         child: const Text("Update"),
                       ),
                     ],
