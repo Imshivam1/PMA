@@ -1,336 +1,274 @@
-import '../models/product.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/product.dart';
 
 class ApiService {
-
   // =========================
   // 🌐 BASE CONFIG
   // =========================
   static const String baseUrl = "http://localhost:8000";
-  static String? token;
+
+  static String? _token;
+  static String? _role;
+
+  // 🔥 FIX: expose role for UI
   static String? role;
 
+  static String? getRole() => _role;
+
   // =========================
-  // 🔐 COMMON HEADERS
+  // 🔐 HEADERS
   // =========================
-  static Map<String, String> get headers {
-    return {
-      'Content-Type': 'application/json',
-      if (token != null) 'Authorization': 'Bearer $token',
-    };
+  static Map<String, String> get _headers => {
+        'Content-Type': 'application/json',
+        if (_token != null) 'Authorization': 'Bearer $_token',
+      };
+
+  static void _ensureAuth() {
+    if (_token == null) throw Exception("User not authenticated");
   }
 
   // =========================
-  // 💾 SAVE AUTH
+  // 💾 AUTH STORAGE
   // =========================
-  static Future<void> saveAuth(String tokenValue, String roleValue) async {
+  static Future<void> saveAuth(String token, String roleValue) async {
     final prefs = await SharedPreferences.getInstance();
-
-    await prefs.setString("token", tokenValue);
+    await prefs.setString("token", token);
     await prefs.setString("role", roleValue);
 
-    token = tokenValue;
-    role = roleValue;
+    _token = token;
+    _role = roleValue;
+    role = roleValue; // ✅ FIX
   }
 
-  // =========================
-  // 🔁 LOAD AUTH
-  // =========================
   static Future<bool> loadAuth() async {
     final prefs = await SharedPreferences.getInstance();
+    _token = prefs.getString("token");
+    _role = prefs.getString("role");
 
-    token = prefs.getString("token");
-    role = prefs.getString("role");
+    role = _role; // ✅ FIX
 
-    return token != null;
+    return _token != null;
   }
 
-  // =========================
-  // 🚪 LOGOUT
-  // =========================
   static Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
-
     await prefs.clear();
 
-    token = null;
-    role = null;
+    _token = null;
+    _role = null;
+    role = null; // ✅ FIX
   }
 
   // =========================
-  // 🔐 LOGIN
+  // 🌍 GENERIC REQUEST HANDLER
   // =========================
-  static Future<Map<String, dynamic>> login(
-      String email,
-      String password,
-      ) async {
+  static Future<dynamic> _request(
+    String method,
+    String endpoint, {
+    Map<String, dynamic>? body,
+    bool authRequired = true,
+  }) async {
+    if (authRequired) _ensureAuth();
 
-    final response = await http.post(
-      Uri.parse('$baseUrl/auth/login'),
-      headers: headers,
-      body: jsonEncode({
-        "email": email,
-        "password": password,
-      }),
-    );
+    final uri = Uri.parse('$baseUrl$endpoint');
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
+    http.Response response;
 
-      await saveAuth(data["access_token"], data["role"]);
+    switch (method) {
+      case "GET":
+        response = await http.get(uri, headers: _headers);
+        break;
+      case "POST":
+        response = await http.post(
+          uri,
+          headers: _headers,
+          body: body != null ? jsonEncode(body) : null,
+        );
+        break;
+      case "PUT":
+        response = await http.put(
+          uri,
+          headers: _headers,
+          body: body != null ? jsonEncode(body) : null,
+        );
+        break;
+      case "DELETE":
+        response = await http.delete(uri, headers: _headers);
+        break;
+      default:
+        throw Exception("Invalid HTTP method");
+    }
 
-      return data;
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return response.body.isNotEmpty ? jsonDecode(response.body) : null;
     } else {
-      throw Exception("Login failed: ${response.body}");
+      throw Exception("API Error (${response.statusCode}): ${response.body}");
     }
   }
 
   // =========================
-  // 📝 REGISTER
+  // 🔐 AUTH APIs
   // =========================
+  static Future<Map<String, dynamic>> login(
+      String email, String password) async {
+    final data = await _request(
+      "POST",
+      "/auth/login",
+      body: {
+        "email": email,
+        "password": password,
+      },
+      authRequired: false,
+    );
+
+    await saveAuth(data["access_token"], data["role"]);
+    return data;
+  }
+
   static Future<void> register({
     required String name,
     required String email,
     required String password,
     required String role,
   }) async {
-
-    final response = await http.post(
-      Uri.parse('$baseUrl/auth/register'),
-      headers: headers,
-      body: jsonEncode({
+    await _request(
+      "POST",
+      "/auth/register",
+      body: {
         "name": name,
         "email": email,
         "password": password,
         "role": role,
-      }),
+      },
+      authRequired: false,
     );
-
-    if (response.statusCode != 200 && response.statusCode != 201) {
-      throw Exception("Registration failed: ${response.body}");
-    }
   }
 
   // =========================
-  // 📦 GET PRODUCTS
+  // 📦 PRODUCT APIs
   // =========================
   static Future<List<Product>> getProducts() async {
-
-    final response = await http.get(
-      Uri.parse('$baseUrl/products/'),
-      headers: headers,
-    );
-
-    if (response.statusCode == 200) {
-      final List data = jsonDecode(response.body);
-      return data.map((e) => Product.fromJson(e)).toList();
-    } else {
-      throw Exception("Failed to load products");
-    }
+    final data = await _request("GET", "/products/");
+    return (data as List).map((e) => Product.fromJson(e)).toList();
   }
 
-  // =========================
-  // ➕ ADD PRODUCT
-  // =========================
   static Future<Map<String, dynamic>> addProduct({
-  required String name,
-  required String brand,
-  required int price,
-  required int stock,
-}) async {
-  if (token == null) throw Exception("Not authenticated");
-
-  final response = await http.post(
-    Uri.parse('$baseUrl/products/'),
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
-    },
-    body: jsonEncode({
-      "name": name,
-      "brand": brand,
-      "price": price,
-      "stock": stock,
-    }),
-  );
-
-  if (response.statusCode == 200 || response.statusCode == 201) {
-    return jsonDecode(response.body); // 🔥 important
-  } else {
-    throw Exception("Failed to add product");
+    required String name,
+    required String brand,
+    required int price,
+    required int stock,
+  }) async {
+    return await _request(
+      "POST",
+      "/products/",
+      body: {
+        "name": name,
+        "brand": brand,
+        "price": price,
+        "stock": stock,
+      },
+    );
   }
-}
+
+  static Future<Map<String, dynamic>> updateProduct({
+    required int id,
+    required String name,
+    required String brand,
+    required int price,
+    required int stock,
+  }) async {
+    return await _request(
+      "PUT",
+      "/products/$id",
+      body: {
+        "name": name,
+        "brand": brand,
+        "price": price,
+        "stock": stock,
+      },
+    );
+  }
+
+  static Future<void> deleteProduct(int id) async {
+    await _request("DELETE", "/products/$id");
+  }
+
+  static Future<List<dynamic>> searchProducts(String query) async {
+    return await _request("GET", "/products/search?query=$query");
+  }
+
+  static Future<void> sellProduct(int productId, int quantity) async {
+    await _request(
+      "POST",
+      "/products/sell/$productId?quantity=$quantity",
+    );
+  }
+
+  // 🔥 FIXED HISTORY API
+  static Future<List<dynamic>> getProductHistory(int productId) async {
+    return await _request("GET", "/products/$productId/history");
+  }
 
   // =========================
-  // 📩 CREATE REQUEST
+  // 📩 STOCK REQUEST APIs
   // =========================
   static Future<void> createRequest({
     required int productId,
     required int quantity,
   }) async {
-
-    final response = await http.post(
-      Uri.parse('$baseUrl/requests/'),
-      headers: headers,
-      body: jsonEncode({
+    await _request(
+      "POST",
+      "/requests/",
+      body: {
         "product_id": productId,
         "quantity": quantity,
-      }),
+      },
     );
-
-    if (response.statusCode != 200 && response.statusCode != 201) {
-      throw Exception("Failed to create request");
-    }
   }
 
-  // =========================
-  // 📥 GET REQUESTS
-  // =========================
   static Future<List<Map<String, dynamic>>> getRequests() async {
-
-    final response = await http.get(
-      Uri.parse('$baseUrl/requests/'),
-      headers: headers,
-    );
-
-    if (response.statusCode == 200) {
-      final List data = jsonDecode(response.body);
-      return List<Map<String, dynamic>>.from(data);
-    } else {
-      throw Exception("Failed to load requests");
-    }
+    final data = await _request("GET", "/requests/");
+    return List<Map<String, dynamic>>.from(data);
   }
 
-  // =========================
-  // ✅ UPDATE REQUEST
-  // =========================
   static Future<void> updateRequest(int id, String status) async {
-
-    final response = await http.put(
-      Uri.parse('$baseUrl/requests/$id?status=$status'),
-      headers: headers,
-    );
-
-    if (response.statusCode != 200) {
-      throw Exception("Failed to update request");
-    }
+    await _request("PUT", "/requests/$id?status=$status");
   }
-    // =========================
-  // ⛓️ OWNER CREATES MANAGER 
+
+  // =========================
+  // 👥 MANAGER APIs
   // =========================
   static Future<void> createManager({
-  required String name,
-  required String email,
-  required String password,
-}) async {
-  if (token == null) {
-    throw Exception("Not authenticated");
+    required String name,
+    required String email,
+    required String password,
+  }) async {
+    await _request(
+      "POST",
+      "/auth/create-user",
+      body: {
+        "name": name,
+        "email": email,
+        "password": password,
+        "role": "manager",
+      },
+    );
   }
 
-  final response = await http.post(
-    Uri.parse('$baseUrl/auth/create-user'),
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
-    },
-    body: jsonEncode({
-      "name": name,
-      "email": email,
-      "password": password,
-      "role": "manager", // 🔥 forced
-    }),
-  );
-
-  if (response.statusCode != 200 && response.statusCode != 201) {
-    throw Exception("Failed to create manager");
+  static Future<List<dynamic>> getManagers() async {
+    return await _request("GET", "/auth/managers");
   }
-}
- // =========================
-  // OWNER GETS MANAGER DETAILS
+
+  static Future<void> deleteManager(int id) async {
+    await _request("DELETE", "/auth/managers/$id");
+  }
+
   // =========================
-static Future<List<dynamic>> getManagers() async {
-  if (token == null) throw Exception("Not authenticated");
-
-  final response = await http.get(
-    Uri.parse('$baseUrl/auth/managers'),
-    headers: {
-      'Authorization': 'Bearer $token',
-    },
-  );
-
-  if (response.statusCode == 200) {
-    return jsonDecode(response.body);
-  } else {
-    throw Exception("Failed to load managers");
-  }
-}
-
-// =========================
-  // OWNER Deletes MANAGER profiles
+  // 📊 DASHBOARD
   // =========================
-
-static Future<void> deleteManager(int id) async {
-  if (token == null) throw Exception("Not authenticated");
-
-  final response = await http.delete(
-    Uri.parse('$baseUrl/auth/managers/$id'),
-    headers: {
-      'Authorization': 'Bearer $token',
-    },
-  );
-
-  if (response.statusCode != 200) {
-    throw Exception("Failed to delete manager");
+  static Future<Map<String, dynamic>> getDashboard() async {
+    return await _request("GET", "/reports/summary");
   }
-}
-// summary by owner
-static Future<Map<String, dynamic>> getDashboard() async {
-  if (token == null) throw Exception("Not authenticated");
-
-  final response = await http.get(
-    Uri.parse('$baseUrl/reports/summary'),
-    headers: {
-      'Authorization': 'Bearer $token',
-    },
-  );
-
-  if (response.statusCode == 200) {
-    return jsonDecode(response.body);
-  } else {
-    throw Exception("Failed to load dashboard");
-  }
-}
-
-//Deletion of discontinued products
-static Future<void> deleteProduct(int id) async {
-  if (token == null) throw Exception("Not authenticated");
-
-  final response = await http.delete(
-    Uri.parse('$baseUrl/products/$id'),
-    headers: {
-      'Authorization': 'Bearer $token',
-    },
-  );
-
-  if (response.statusCode != 200) {
-    throw Exception("Failed to delete product");
-  }
-}
-
-static Future<List<dynamic>> searchProducts(String query) async {
-  final response = await http.get(
-    Uri.parse('$baseUrl/products/search?query=$query'),
-    headers: {
-      'Authorization': 'Bearer $token',
-    },
-  );
-
-  if (response.statusCode == 200) {
-    return jsonDecode(response.body);
-  } else {
-    throw Exception("Search failed");
-  }
-}
 }

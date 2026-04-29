@@ -1,7 +1,8 @@
-import '../models/product.dart';
 import 'package:flutter/material.dart';
+import '../models/product.dart';
 import '../services/api_service.dart';
 import '../widgets/custom_appbar.dart';
+import 'history_screen.dart';
 
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});
@@ -11,6 +12,9 @@ class InventoryScreen extends StatefulWidget {
 }
 
 class _InventoryScreenState extends State<InventoryScreen> {
+  // =========================
+  // 📦 STATE
+  // =========================
   List<Product> _allProducts = [];
   List<Product> _filteredProducts = [];
 
@@ -27,7 +31,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   // =========================
-  // LOAD PRODUCTS
+  // 📦 LOAD PRODUCTS
   // =========================
   Future<void> _loadProducts() async {
     try {
@@ -47,7 +51,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   // =========================
-  // SEARCH
+  // 🔍 SEARCH
   // =========================
   void _searchProducts(String query) {
     final q = query.toLowerCase();
@@ -58,28 +62,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
       return name.contains(q) || brand.contains(q);
     }).toList();
 
-    setState(() {
-      _filteredProducts = results;
-    });
+    setState(() => _filteredProducts = results);
   }
 
   // =========================
-  // FIND EXISTING PRODUCT
-  // =========================
-  Product? _findExistingProduct(String name, String brand) {
-    try {
-      return _allProducts.firstWhere(
-        (p) =>
-            p.name.toLowerCase() == name.toLowerCase() &&
-            (p.brand ?? "").toLowerCase() == brand.toLowerCase(),
-      );
-    } catch (_) {
-      return null;
-    }
-  }
-
-  // =========================
-  // FETCH SUGGESTIONS
+  // 🔎 FETCH SUGGESTIONS
   // =========================
   void _fetchSuggestions(String query) async {
     if (query.isEmpty) {
@@ -92,7 +79,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
     try {
       final results = await ApiService.searchProducts(query);
-
       setState(() {
         _suggestions = results;
         _showSuggestions = true;
@@ -100,129 +86,196 @@ class _InventoryScreenState extends State<InventoryScreen> {
     } catch (_) {}
   }
 
+  // =========================
+  // 🧱 UI
+  // =========================
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: const CustomAppBar(title: "Inventory"),
+    return GestureDetector(
+      onTap: () => setState(() => _showSuggestions = false),
+      child: Scaffold(
+        appBar: const CustomAppBar(title: "Inventory"),
 
-      floatingActionButton: ApiService.role == "owner"
-          ? FloatingActionButton(
-              onPressed: _showAddProductDialog,
-              child: const Icon(Icons.add),
-            )
-          : null,
+        // ➕ ADD PRODUCT (OWNER ONLY)
+        floatingActionButton: ApiService.getRole() == "owner"
+            ? FloatingActionButton(
+                onPressed: _showAddProductDialog,
+                child: const Icon(Icons.add),
+              )
+            : null,
 
-      body: Column(
-        children: [
-          // 🔍 SEARCH BAR
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: TextField(
-              decoration: const InputDecoration(
-                hintText: "Search products...",
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
-              ),
-              onChanged: (value) {
-                _searchProducts(value);
-                _fetchSuggestions(value);
-              },
-            ),
-          ),
-
-          // 🔥 SUGGESTIONS DROPDOWN
-          if (_showSuggestions)
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 12),
-              constraints: const BoxConstraints(maxHeight: 200),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: Colors.grey.shade300),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: _suggestions.length,
-                itemBuilder: (_, index) {
-                  final item = _suggestions[index];
-
-                  return ListTile(
-                    title: Text(item["name"]),
-                    subtitle: Text(item["brand"] ?? ""),
-                    onTap: () {
-                      setState(() => _showSuggestions = false);
-
-                      _showAddProductDialog(
-                        prefillName: item["name"],
-                        prefillBrand: item["brand"] ?? "",
-                      );
-                    },
-                  );
+        body: Column(
+          children: [
+            // =========================
+            // 🔍 SEARCH BAR
+            // =========================
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: TextField(
+                decoration: const InputDecoration(
+                  hintText: "Search products...",
+                  prefixIcon: Icon(Icons.search),
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: (value) {
+                  _searchProducts(value);
+                  _fetchSuggestions(value);
                 },
               ),
             ),
 
-          // =========================
-          // PRODUCT LIST
-          // =========================
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _error.isNotEmpty
-                    ? Center(child: Text("Error: $_error"))
-                    : _filteredProducts.isEmpty
-                        ? const Center(child: Text("No products found"))
-                        : ListView.builder(
-                            itemCount: _filteredProducts.length,
-                            itemBuilder: (_, index) {
-                              final product = _filteredProducts[index];
+            // =========================
+            // 🔥 SUGGESTIONS DROPDOWN
+            // =========================
+            if (_showSuggestions)
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 12),
+                constraints: const BoxConstraints(maxHeight: 200),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: ListView.builder(
+                  itemCount: _suggestions.length,
+                  itemBuilder: (_, index) {
+                    final item = _suggestions[index];
 
-                              return Card(
-                                margin: const EdgeInsets.all(10),
-                                child: ListTile(
-                                  title: Text(product.name),
-                                  subtitle: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      if (product.brand != null &&
-                                          product.brand!.isNotEmpty)
-                                        Text(product.brand!),
-                                      Text("₹${product.price}"),
-                                      Text("Stock: ${product.stock}"),
-                                    ],
-                                  ),
-                                  trailing: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      if (product.stock < 5)
-                                        const Icon(Icons.warning,
-                                            color: Colors.red),
+                    return ListTile(
+                      title: Text(item["name"]),
+                      subtitle: Text(item["brand"] ?? ""),
+                      onTap: () {
+                        setState(() => _showSuggestions = false);
 
-                                      if (ApiService.role == "owner")
-                                        IconButton(
-                                          icon: const Icon(Icons.delete,
+                        _showAddProductDialog(
+                          prefillName: item["name"],
+                          prefillBrand: item["brand"] ?? "",
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+
+            // =========================
+            // 📄 PRODUCT LIST
+            // =========================
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error.isNotEmpty
+                      ? Center(child: Text("Error: $_error"))
+                      : _filteredProducts.isEmpty
+                          ? const Center(child: Text("No products found"))
+                          : ListView.builder(
+                              itemCount: _filteredProducts.length,
+                              itemBuilder: (_, index) {
+                                final product = _filteredProducts[index];
+
+                                return Card(
+                                  margin: const EdgeInsets.all(10),
+                                  child: ListTile(
+                                    title: Text(product.name),
+
+                                    // =========================
+                                    // 📄 PRODUCT DETAILS
+                                    // =========================
+                                    subtitle: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        if (product.brand != null &&
+                                            product.brand!.isNotEmpty)
+                                          Text(product.brand!),
+
+                                        Text("₹${product.price}"),
+                                        Text("Stock: ${product.stock}"),
+
+                                        const SizedBox(height: 8),
+
+                                        // 📩 REQUEST BUTTON (MANAGER)
+                                        if (ApiService.getRole() == "manager")
+                                          ElevatedButton.icon(
+                                            style: ElevatedButton.styleFrom(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 12,
+                                                      vertical: 6),
+                                              visualDensity:
+                                                  VisualDensity.compact,
+                                            ),
+                                            onPressed: product.stock == 0
+                                                ? null
+                                                : () {
+                                                    _showRequestDialog(
+                                                        product.id);
+                                                  },
+                                            icon: const Icon(Icons.send,
+                                                size: 18),
+                                            label: const Text("Request"),
+                                          ),
+                                      ],
+                                    ),
+
+                                    // =========================
+                                    // ⚙️ ACTIONS
+                                    // =========================
+                                    trailing: Wrap(
+                                      spacing: 6,
+                                      children: [
+                                        if (product.stock < 5)
+                                          const Icon(Icons.warning,
                                               color: Colors.red),
+
+                                        // 📜 HISTORY
+                                        IconButton(
+                                          icon: const Icon(Icons.history),
                                           onPressed: () {
-                                            _confirmDelete(
-                                                product.id,
-                                                product.name);
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (_) => HistoryScreen(
+                                                    productId: product.id),
+                                              ),
+                                            );
                                           },
                                         ),
-                                    ],
+
+                                        // 👑 OWNER ACTIONS
+                                        if (ApiService.getRole() ==
+                                            "owner") ...[
+                                          IconButton(
+                                            icon: const Icon(Icons.edit,
+                                                color: Colors.blue),
+                                            onPressed: () {
+                                              _showAddProductDialog(
+                                                  product: product);
+                                            },
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(Icons.delete,
+                                                color: Colors.red),
+                                            onPressed: () {
+                                              _confirmDelete(product.id,
+                                                  product.name);
+                                            },
+                                          ),
+                                        ],
+                                      ],
+                                    ),
                                   ),
-                                ),
-                              );
-                            },
-                          ),
-          ),
-        ],
+                                );
+                              },
+                            ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   // =========================
-  // DELETE
+  // ❌ DELETE PRODUCT
   // =========================
   void _confirmDelete(int id, String name) {
     showDialog(
@@ -249,52 +302,48 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   // =========================
-  // ADD PRODUCT
+  // ➕ ADD / EDIT PRODUCT
   // =========================
   void _showAddProductDialog({
+    Product? product,
     String? prefillName,
     String? prefillBrand,
   }) {
     final nameController =
-        TextEditingController(text: prefillName ?? "");
+        TextEditingController(text: product?.name ?? prefillName ?? "");
     final brandController =
-        TextEditingController(text: prefillBrand ?? "");
-    final priceController = TextEditingController();
-    final stockController = TextEditingController();
+        TextEditingController(text: product?.brand ?? prefillBrand ?? "");
+    final priceController = TextEditingController(
+      text: product != null ? product.price.toString() : "",
+    );
+    final stockController = TextEditingController(
+      text: product != null ? product.stock.toString() : "",
+    );
 
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text("Add Product"),
+        title: Text(product != null ? "Edit Product" : "Add Product"),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: nameController,
-              readOnly: prefillName != null,
-              decoration:
-                  const InputDecoration(labelText: "Name"),
+              decoration: const InputDecoration(labelText: "Name"),
             ),
-            const SizedBox(height: 8),
             TextField(
               controller: brandController,
-              readOnly: prefillBrand != null,
-              decoration:
-                  const InputDecoration(labelText: "Brand"),
+              decoration: const InputDecoration(labelText: "Brand"),
             ),
-            const SizedBox(height: 8),
             TextField(
               controller: priceController,
               keyboardType: TextInputType.number,
-              decoration:
-                  const InputDecoration(labelText: "Price"),
+              decoration: const InputDecoration(labelText: "Price"),
             ),
-            const SizedBox(height: 8),
             TextField(
               controller: stockController,
               keyboardType: TextInputType.number,
-              decoration:
-                  const InputDecoration(labelText: "Stock"),
+              decoration: const InputDecoration(labelText: "Stock"),
             ),
           ],
         ),
@@ -310,60 +359,31 @@ class _InventoryScreenState extends State<InventoryScreen> {
               final price = int.tryParse(priceController.text);
               final stock = int.tryParse(stockController.text);
 
-              if (name.isEmpty ||
-                  price == null ||
-                  stock == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Enter valid data")),
+              if (name.isEmpty || price == null || stock == null) return;
+
+              if (product != null) {
+                await ApiService.updateProduct(
+                  id: product.id,
+                  name: name,
+                  brand: brand,
+                  price: price,
+                  stock: stock,
                 );
-                return;
-              }
-
-              final existing = _findExistingProduct(name, brand);
-
-              if (existing != null) {
-                final confirm = await showDialog<bool>(
-                  context: context,
-                  builder: (_) => AlertDialog(
-                    title: const Text("Product Exists"),
-                    content: Text(
-                      "'$name (${brand.isEmpty ? "No Brand" : brand}) already exists.\n\nUpdate stock instead?",
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () =>
-                            Navigator.pop(context, false),
-                        child: const Text("Cancel"),
-                      ),
-                      ElevatedButton(
-                        onPressed: () =>
-                            Navigator.pop(context, true),
-                        child: const Text("Update"),
-                      ),
-                    ],
-                  ),
+              } else {
+                await ApiService.addProduct(
+                  name: name,
+                  brand: brand,
+                  price: price,
+                  stock: stock,
                 );
-
-                if (confirm != true) return;
               }
-
-              final result = await ApiService.addProduct(
-                name: name,
-                brand: brand,
-                price: price,
-                stock: stock,
-              );
 
               if (!mounted) return;
 
               Navigator.pop(context);
               _loadProducts();
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(result["message"])),
-              );
             },
-            child: const Text("Save"),
+            child: Text(product != null ? "Update" : "Save"),
           ),
         ],
       ),
@@ -371,7 +391,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   // =========================
-  // REQUEST
+  // 📩 REQUEST STOCK
   // =========================
   void _showRequestDialog(int productId) {
     final qtyController = TextEditingController();
