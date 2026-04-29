@@ -47,7 +47,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   // =========================
-  // LOCAL SEARCH
+  // SEARCH
   // =========================
   void _searchProducts(String query) {
     final q = query.toLowerCase();
@@ -55,7 +55,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
     final results = _allProducts.where((product) {
       final name = product.name.toLowerCase();
       final brand = (product.brand ?? "").toLowerCase();
-
       return name.contains(q) || brand.contains(q);
     }).toList();
 
@@ -65,7 +64,22 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   // =========================
-  // API SUGGESTIONS
+  // FIND EXISTING PRODUCT
+  // =========================
+  Product? _findExistingProduct(String name, String brand) {
+    try {
+      return _allProducts.firstWhere(
+        (p) =>
+            p.name.toLowerCase() == name.toLowerCase() &&
+            (p.brand ?? "").toLowerCase() == brand.toLowerCase(),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // =========================
+  // FETCH SUGGESTIONS
   // =========================
   void _fetchSuggestions(String query) async {
     if (query.isEmpty) {
@@ -105,7 +119,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
             padding: const EdgeInsets.all(12),
             child: TextField(
               decoration: const InputDecoration(
-                hintText: "Search products (name / brand)...",
+                hintText: "Search products...",
                 prefixIcon: Icon(Icons.search),
                 border: OutlineInputBorder(),
               ),
@@ -153,127 +167,48 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     ? Center(child: Text("Error: $_error"))
                     : _filteredProducts.isEmpty
                         ? const Center(child: Text("No products found"))
-                        : RefreshIndicator(
-                            onRefresh: _loadProducts,
-                            child: ListView.separated(
-                              padding: const EdgeInsets.all(16),
-                              itemCount: _filteredProducts.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 12),
-                              itemBuilder: (_, index) {
-                                final product =
-                                    _filteredProducts[index];
+                        : ListView.builder(
+                            itemCount: _filteredProducts.length,
+                            itemBuilder: (_, index) {
+                              final product = _filteredProducts[index];
 
-                                return Card(
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius:
-                                        BorderRadius.circular(16),
+                              return Card(
+                                margin: const EdgeInsets.all(10),
+                                child: ListTile(
+                                  title: Text(product.name),
+                                  subtitle: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      if (product.brand != null &&
+                                          product.brand!.isNotEmpty)
+                                        Text(product.brand!),
+                                      Text("₹${product.price}"),
+                                      Text("Stock: ${product.stock}"),
+                                    ],
                                   ),
-                                  elevation: 3,
-                                  child: Padding(
-                                    padding:
-                                        const EdgeInsets.all(12),
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        // LEFT
-                                        Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              product.name,
-                                              style:
-                                                  const TextStyle(
-                                                fontSize: 16,
-                                                fontWeight:
-                                                    FontWeight.bold,
-                                              ),
-                                            ),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (product.stock < 5)
+                                        const Icon(Icons.warning,
+                                            color: Colors.red),
 
-                                            if (product.brand != null &&
-                                                product.brand!
-                                                    .isNotEmpty)
-                                              Text(
-                                                product.brand!,
-                                                style:
-                                                    const TextStyle(
-                                                  fontSize: 13,
-                                                  color: Colors.grey,
-                                                ),
-                                              ),
-
-                                            const SizedBox(height: 4),
-
-                                            Text(
-                                                "₹${product.price}"),
-
-                                            Text(
-                                              "Stock: ${product.stock}",
-                                              style: TextStyle(
-                                                color: product.stock < 5
-                                                    ? Colors.red
-                                                    : Colors.green,
-                                              ),
-                                            ),
-
-                                            // MANAGER BUTTON
-                                            if (ApiService.role ==
-                                                "manager") ...[
-                                              const SizedBox(
-                                                  height: 8),
-                                              ElevatedButton.icon(
-                                                onPressed:
-                                                    product.stock ==
-                                                            0
-                                                        ? null
-                                                        : () {
-                                                            _showRequestDialog(
-                                                                product
-                                                                    .id);
-                                                          },
-                                                icon: const Icon(
-                                                    Icons.send,
-                                                    size: 18),
-                                                label: const Text(
-                                                    "Request"),
-                                              ),
-                                            ],
-                                          ],
+                                      if (ApiService.role == "owner")
+                                        IconButton(
+                                          icon: const Icon(Icons.delete,
+                                              color: Colors.red),
+                                          onPressed: () {
+                                            _confirmDelete(
+                                                product.id,
+                                                product.name);
+                                          },
                                         ),
-
-                                        // RIGHT
-                                        Row(
-                                          children: [
-                                            if (product.stock < 5)
-                                              const Icon(
-                                                Icons.warning,
-                                                color: Colors.red,
-                                              ),
-
-                                            if (ApiService.role ==
-                                                "owner")
-                                              IconButton(
-                                                icon: const Icon(
-                                                    Icons.delete,
-                                                    color:
-                                                        Colors.red),
-                                                onPressed: () {
-                                                  _confirmDelete(
-                                                    product.id,
-                                                    product.name,
-                                                  );
-                                                },
-                                              ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
+                                    ],
                                   ),
-                                );
-                              },
-                            ),
+                                ),
+                              );
+                            },
                           ),
           ),
         ],
@@ -309,7 +244,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   // =========================
-  // ADD PRODUCT
+  // ADD PRODUCT (WITH CONFIRMATION)
   // =========================
   void _showAddProductDialog() {
     final nameController = TextEditingController();
@@ -324,33 +259,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
-              controller: nameController,
-              decoration:
-                  const InputDecoration(labelText: "Name"),
-            ),
+            TextField(controller: nameController, decoration: const InputDecoration(labelText: "Name")),
             const SizedBox(height: 8),
-            TextField(
-              controller: brandController,
-              decoration: const InputDecoration(
-                labelText: "Brand",
-                hintText: "Crocin / Loose / Generic",
-              ),
-            ),
+            TextField(controller: brandController, decoration: const InputDecoration(labelText: "Brand")),
             const SizedBox(height: 8),
-            TextField(
-              controller: priceController,
-              keyboardType: TextInputType.number,
-              decoration:
-                  const InputDecoration(labelText: "Price"),
-            ),
+            TextField(controller: priceController, keyboardType: TextInputType.number),
             const SizedBox(height: 8),
-            TextField(
-              controller: stockController,
-              keyboardType: TextInputType.number,
-              decoration:
-                  const InputDecoration(labelText: "Stock"),
-            ),
+            TextField(controller: stockController, keyboardType: TextInputType.number),
           ],
         ),
         actions: [
@@ -358,6 +273,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
             onPressed: () => Navigator.pop(context),
             child: const Text("Cancel"),
           ),
+
           ElevatedButton(
             onPressed: () async {
               final name = nameController.text.trim();
@@ -365,14 +281,38 @@ class _InventoryScreenState extends State<InventoryScreen> {
               final price = int.tryParse(priceController.text);
               final stock = int.tryParse(stockController.text);
 
-              if (name.isEmpty ||
-                  price == null ||
-                  stock == null) {
+              if (name.isEmpty || price == null || stock == null) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text("Enter valid data")),
+                  const SnackBar(content: Text("Enter valid data")),
                 );
                 return;
+              }
+
+              final existing = _findExistingProduct(name, brand);
+
+              // 🔥 CONFIRM DUPLICATE
+              if (existing != null) {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    title: const Text("Product Exists"),
+                    content: Text(
+                      "'$name (${brand.isEmpty ? "No Brand" : brand}) already exists.\n\nUpdate stock instead?",
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text("Cancel"),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text("Update"),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirm != true) return;
               }
 
               final result = await ApiService.addProduct(
@@ -399,7 +339,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   // =========================
-  // REQUEST STOCK
+  // REQUEST
   // =========================
   void _showRequestDialog(int productId) {
     final qtyController = TextEditingController();
@@ -411,18 +351,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
         content: TextField(
           controller: qtyController,
           keyboardType: TextInputType.number,
-          decoration:
-              const InputDecoration(labelText: "Quantity"),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel"),
-          ),
           ElevatedButton(
             onPressed: () async {
               final qty = int.tryParse(qtyController.text);
-
               if (qty == null || qty <= 0) return;
 
               await ApiService.createRequest(
