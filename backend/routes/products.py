@@ -68,13 +68,14 @@ def add_product(
             change=product.stock,
             action="restocked",
             user_id=current_user.id,
-            note="Stock added"
+            note=f"Added {product.stock} items"
         )
 
         db.add(history)
         db.commit()
 
-        return {"message": "Stock updated", "type": "update"}
+        return {"message": f"Stock updated (+{product.stock})", "type": "update"}
+    
 
     # 🆕 CREATE PRODUCT
     new_product = Product(
@@ -94,7 +95,7 @@ def add_product(
         change=product.stock,
         action="created",
         user_id=current_user.id,
-        note="Initial stock"
+        note="Initial stock added"
     )
 
     db.add(history)
