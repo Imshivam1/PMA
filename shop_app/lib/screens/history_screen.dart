@@ -20,9 +20,31 @@ class _HistoryScreenState extends State<HistoryScreen> {
     _history = ApiService.getProductHistory(widget.productId);
   }
 
+  // 📅 Format Date
   String formatDate(String date) {
     final parsed = DateTime.parse(date);
     return DateFormat('dd MMM, hh:mm a').format(parsed);
+  }
+
+  // 🧠 Smart Action Labels
+  String actionLabel(String action) {
+    switch (action.toLowerCase()) {
+      case "add":
+        return "Stock Added";
+      case "remove":
+        return "Stock Removed";
+      case "update":
+        return "Stock Updated";
+      default:
+        return action;
+    }
+  }
+
+  // 🔄 Refresh Function
+  Future<void> _refresh() async {
+    setState(() {
+      _history = ApiService.getProductHistory(widget.productId);
+    });
   }
 
   @override
@@ -42,60 +64,84 @@ class _HistoryScreenState extends State<HistoryScreen> {
             return Center(child: Text("Error: ${snapshot.error}"));
           }
 
-          final data = snapshot.data!;
+          // ✅ Safe Data Handling
+          final data = snapshot.data ?? [];
 
-          // 📭 Empty
+          // 📭 Empty State UI
           if (data.isEmpty) {
-            return const Center(child: Text("No history found"));
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.history, size: 60, color: Colors.grey),
+                  SizedBox(height: 10),
+                  Text("No history yet"),
+                ],
+              ),
+            );
           }
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(12),
-            itemCount: data.length,
-            itemBuilder: (_, index) {
-              final item = data[index];
-              final change = item["change"];
-              final isPositive = change > 0;
+          return RefreshIndicator(
+            onRefresh: _refresh,
+            child: ListView.builder(
+              padding: const EdgeInsets.all(12),
+              itemCount: data.length,
+              itemBuilder: (_, index) {
+                final item = data[index];
+                final change = item["change"] ?? 0;
+                final isPositive = change > 0;
 
-              return Card(
-                margin: const EdgeInsets.symmetric(vertical: 6),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor:
-                        isPositive ? Colors.green : Colors.red,
-                    child: Icon(
-                      isPositive ? Icons.add : Icons.remove,
-                      color: Colors.white,
+                final note = item["note"];
+                final action = item["action"] ?? "";
+
+                return Card(
+                  elevation: 3,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  margin: const EdgeInsets.symmetric(vertical: 6),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 8),
+
+                    // 🟢🔴 ICON
+                    leading: CircleAvatar(
+                      backgroundColor:
+                          isPositive ? Colors.green : Colors.red,
+                      child: Icon(
+                        isPositive ? Icons.add : Icons.remove,
+                        color: Colors.white,
+                      ),
+                    ),
+
+                    // 🔥 TITLE
+                    title: Text(
+                      "${isPositive ? "+" : ""}$change units",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color:
+                            isPositive ? Colors.green : Colors.red,
+                      ),
+                    ),
+
+                    // 🧠 SUBTITLE (Smart Handling)
+                    subtitle: Text(
+                      (note != null && note.toString().isNotEmpty)
+                          ? "${actionLabel(action)} • $note"
+                          : actionLabel(action),
+                      style: const TextStyle(fontSize: 13),
+                    ),
+
+                    // 🕒 DATE
+                    trailing: Text(
+                      formatDate(item["created_at"]),
+                      style: const TextStyle(fontSize: 12),
                     ),
                   ),
-
-                  title: Text(
-                    "${isPositive ? "+" : ""}$change",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: isPositive ? Colors.green : Colors.red,
-                    ),
-                  ),
-
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(item["action"]),
-                      if (item["note"] != null)
-                        Text(
-                          item["note"],
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                    ],
-                  ),
-
-                  trailing: Text(
-                    formatDate(item["created_at"]),
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           );
         },
       ),

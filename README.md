@@ -1,173 +1,176 @@
-# 🚀 PMA — Product Update: Stock Request & Approval System
+# 🧾 Inventory Management System (Flutter + FastAPI)
 
-## 📌 Overview
-
-This update introduces one of the **core business features** of PMA — a complete **Stock Request & Approval Workflow**.
-
-The system now supports real-world retail operations where:
-
-* Managers request stock adjustments
-* Owners review and approve/reject requests
-* Inventory updates automatically based on decisions
+A full-stack inventory management application built with **Flutter (Frontend)** and **FastAPI (Backend)** featuring role-based access, smart inventory handling, and real-time stock tracking.
 
 ---
 
-## ✨ Features Implemented
+## 🚀 Features
 
-### 🔐 Role-Based Workflow
-
-* **Manager**
-
-  * Can view products
-  * Can create stock requests
-
-* **Owner**
-
-  * Can create products
-  * Can approve/reject requests
-  * Controls inventory flow
+### 🔐 Authentication
+- Login / Register system  
+- Role-based access:
+  - 👑 Owner  
+  - 👨‍💼 Manager  
+- JWT-based authentication  
 
 ---
 
-### 📦 Product Management (Database-Based)
+### 📦 Inventory Management
+- Add product  
+- Edit product  
+- Delete product (with confirmation)  
+- View all products  
+- Low stock alerts (⚠️ if stock < 5)  
 
-* Migrated from in-memory storage → **SQL database**
-* Product model includes:
+---
 
-  * `id`
-  * `name`
-  * `price`
-  * `stock`
+### 🧠 Smart Product Handling
+- Case-insensitive matching:
+  - `"Curd" == "curd"`  
+- Prevents duplicate products  
+- Automatically updates stock instead of creating duplicates  
+
+---
+
+### 🔍 Search & Suggestions
+- Search by product name and brand  
+- Smart suggestion dropdown (like macOS Spotlight)  
+- Autofill product details from suggestions  
 
 ---
 
 ### 📩 Stock Request System
-
-Managers can create requests:
-
-* Linked to a specific product
-* Includes requested quantity
-* Automatically assigned status:
-
-  * `pending`
+- Managers can request stock  
+- Owners can:
+  - Approve requests  
+  - Reject requests  
 
 ---
 
-### ✅ Approval System (Core Logic)
-
-When an owner updates request status:
-
-* **If approved:**
-
-  * Product stock is reduced automatically
-* **If rejected:**
-
-  * No changes to inventory
+### 📊 Dashboard
+- Total products  
+- Low stock items  
+- Pending requests  
 
 ---
 
-## 🔁 Request Lifecycle
+### 📜 Stock History Tracking
 
-```text
-Manager → Create Request → Status: pending
-        ↓
-Owner → Approve / Reject
-        ↓
-System → Update Inventory (if approved)
-```
+Tracks every inventory change:
 
----
+- ➕ Product created  
+- ➕ Stock restocked  
+- ➖ Product sold  
+- ✏️ Manual adjustments  
 
-## ⚙️ API Endpoints
+#### Example:
 
-### 📦 Products
++10 RESTOCKED • Added 10 items
+-5 SOLD • Product sold
++20 CREATED • Initial stock added
 
-* `GET /products/` → View products (Manager/Owner)
-* `POST /products/` → Add product (Owner only)
 
 ---
 
-### 📩 Stock Requests
-
-* `POST /requests/` → Create request (Manager)
-* `GET /requests/` → View requests
-* `PUT /requests/{id}` → Approve/Reject (Owner)
-
----
-
-## 🧠 Core Business Logic
-
-```python
-if status == "approved":
-    product.stock -= request.quantity
-```
-
-This ensures:
-
-* Real-time inventory control
-* Data consistency
-* Role-based accountability
+### 🎯 Smart UI/UX
+- Reusable dialog for Add/Edit  
+- Real-time feedback messages:
+  - ✅ Product created  
+  - 🔄 Stock updated (+5)  
+- Clean card-based UI  
+- Role-based UI rendering  
 
 ---
 
-## ⚠️ Important Notes
+## 🏗️ Tech Stack
 
-* Database reset required after schema updates:
+### Frontend
+- Flutter  
+- Dart  
+- Material UI  
 
-  ```bash
-  rm shop.db
-  uvicorn main:app --reload
-  ```
-
-* Authentication required for all protected routes (JWT-based)
-
----
-
-## 📈 Current Progress
-
-### ✅ Completed
-
-* Authentication (JWT)
-* Role-based access (Owner / Manager)
-* Product management (DB integrated)
-* Stock request system
-* Approval workflow with inventory update
+### Backend
+- FastAPI  
+- SQLAlchemy  
+- SQLite  
 
 ---
 
-### 🚧 In Progress
+## ⚙️ Project Structure
 
-* Flutter UI integration with backend
-* Token persistence (auto-login)
-* Profile & logout system
 
----
+backend/
+├── main.py
+├── models.py
+├── routes/
+│ ├── auth.py
+│ ├── products.py
+│ ├── requests.py
+│ └── reports.py
+├── schemas.py
+├── database.py
 
-### 🔮 Upcoming
+frontend/
+├── screens/
+├── models/
+├── services/
+├── widgets/
 
-* Multi-owner support with separate managers
-* Analytics & reporting dashboard
-* AI-powered inventory insights
-
----
-
-## 💡 Vision
-
-PMA is evolving into a **mobile-first smart POS system** where:
-
-* Shopkeepers manage everything from their phone
-* Inventory is controlled with accountability
-* AI will assist in decision-making
 
 ---
 
-## 🤝 Contribution & Feedback
+## 🧪 Key Learnings
+- Reusable UI components (single dialog for multiple flows)  
+- Backend-driven logic (duplicate handling)  
+- REST API design  
+- Role-based access control  
+- State management in Flutter  
+- Full-stack debugging (API + UI)  
 
-This project is actively evolving. Feedback and ideas are always welcome!
+---
+
+## 🐛 Issues Fixed
+- Case-sensitive duplicate bug  
+- API route mismatch (`/history/{id}` vs `/id/history`)  
+- Missing DB columns (`owner_id`)  
+- Incorrect imports (`SQLAlchemy func`)  
+- UI rendering issues (nested widgets)  
+- API connection issues (`localhost` vs `127.0.0.1`)  
+
+---
+
+## 🚀 Future Improvements
+
+### 🔥 Short Term
+- Show user names in stock history (instead of IDs)  
+- Role labels (Owner / Manager)  
+- History filters (Today / Week)  
+
+---
+
+### 📈 Mid Term
+- Sales tracking  
+- Analytics dashboard (charts)  
+- Expiry alerts  
+- Barcode scanning  
+
+---
+
+### 🤖 Long Term
+- AI-based stock prediction  
+- Smart restocking suggestions  
+- Multi-store support  
+- Notification system  
 
 ---
 
 ## 🧑‍💻 Author
 
-**Shivam Kumar Manjhi**
-Building practical, scalable systems with real-world impact 🚀
+**Shivam Kumar Manjhi**  
+Junior Full Stack Developer  
+
+---
+
+## ⭐ Final Note
+
+This project evolved from a basic CRUD app into a **real-world inventory system with intelligent behavior and scalable architecture**.

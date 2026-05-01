@@ -361,8 +361,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
               if (name.isEmpty || price == null || stock == null) return;
 
+              Map<String, dynamic> result;
+
               if (product != null) {
-                await ApiService.updateProduct(
+                // ✏️ EDIT MODE
+                result = await ApiService.updateProduct(
                   id: product.id,
                   name: name,
                   brand: brand,
@@ -370,7 +373,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   stock: stock,
                 );
               } else {
-                await ApiService.addProduct(
+                // ➕ ADD MODE
+                result = await ApiService.addProduct(
                   name: name,
                   brand: brand,
                   price: price,
@@ -382,6 +386,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
               Navigator.pop(context);
               _loadProducts();
+              
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(result["message"])),
+              );
             },
             child: Text(product != null ? "Update" : "Save"),
           ),
