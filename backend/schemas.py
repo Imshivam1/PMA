@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from datetime import datetime
 
 
 #  PRODUCT CREATE
@@ -48,3 +49,18 @@ class CreateUserRequest(BaseModel):
     email: str
     password: str
     role: str
+
+class StockHistoryResponse(BaseModel):
+    id: int
+
+    change: int
+    action: str
+    note: str | None = None
+
+    created_at: datetime
+
+    user_name: str
+    user_role: str
+
+    class Config:
+        from_attributes = True
