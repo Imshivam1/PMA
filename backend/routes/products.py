@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func 
 from database import SessionLocal
-from models import Product, StockHistory
+from models import Product, StockHistory, User
 from core.dependencies import manager_required, owner_required
-from schemas import ProductCreate, ProductResponse
+from schemas import ProductCreate, ProductResponse, StockHistoryResponse
 
 router = APIRouter(tags=["Products"])
 
@@ -230,7 +230,10 @@ def search_products(
 # =========================
 # 📜 STOCK HISTORY
 # =========================
-@router.get("/{product_id}/history")
+@router.get(
+    "/{product_id}/history",
+    response_model=list[StockHistoryResponse]
+)
 def get_stock_history(
     product_id: int,
     db: Session = Depends(get_db),
@@ -246,6 +249,26 @@ def get_stock_history(
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    return db.query(StockHistory).filter(
-        StockHistory.product_id == product_id
-    ).order_by(StockHistory.created_at.desc()).all()
+    history = (
+        db.query(StockHistory)
+        .join(User)
+        .filter(StockHistory.product_id == product_id)
+        .order_by(StockHistory.created_at.desc())
+        .all()
+    )
+
+    result = []
+
+    for item in history:
+        result.append({
+            "id": item.id,
+            "change": item.change,
+            "action": item.action,
+            "note": item.note,
+            "created_at": item.created_at,
+
+            "user_name": item.user.name if item.user else "Unknown",
+            "user_role": item.user.role if item.user else "Unknown",
+        })
+
+    return result
