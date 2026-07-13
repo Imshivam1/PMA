@@ -52,7 +52,6 @@ class CreateUserRequest(BaseModel):
 
 class StockHistoryResponse(BaseModel):
     id: int
-
     change: int
     action: str
     note: str | None = None

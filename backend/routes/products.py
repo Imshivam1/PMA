@@ -4,7 +4,11 @@ from sqlalchemy import func
 from database import SessionLocal
 from models import Product, StockHistory, User
 from core.dependencies import manager_required, owner_required
-from schemas import ProductCreate, ProductResponse, StockHistoryResponse
+from schemas import (
+    ProductCreate, 
+    ProductResponse, 
+    StockHistoryResponse
+    )
 
 router = APIRouter(tags=["Products"])
 
