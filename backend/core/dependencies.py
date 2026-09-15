@@ -8,12 +8,9 @@ from sqlalchemy.orm import Session
 
 from database import SessionLocal
 from models import User
+from core.config import get_settings
 
-# =========================
-# JWT CONFIG
-# =========================
-SECRET_KEY = "super-secret-key-change-this"  # must match security.py
-ALGORITHM = "HS256"
+settings = get_settings()
 
 # =========================
 # TOKEN SCHEME (OAuth2)
@@ -40,7 +37,11 @@ def get_current_user(
 ):
     try:
         # Decode JWT
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(
+            token,
+            settings.secret_key,
+            algorithms=[settings.algorithm],
+        )
         user_id = payload.get("user_id")
 
         if user_id is None:
