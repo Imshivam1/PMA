@@ -5,7 +5,10 @@ import '../services/api_service.dart';
 class HistoryScreen extends StatefulWidget {
   final int productId;
 
-  const HistoryScreen({super.key, required this.productId});
+  const HistoryScreen({
+    super.key,
+    required this.productId,
+  });
 
   @override
   State<HistoryScreen> createState() => _HistoryScreenState();
@@ -21,22 +24,36 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   // 📅 Format Date
-  String formatDate(String date) {
-    final parsed = DateTime.parse(date);
-    return DateFormat('dd MMM, hh:mm a').format(parsed);
+  String formatDate(String? date) {
+    if (date == null || date.isEmpty) {
+      return "Unknown date";
+    }
+
+    try {
+      final parsed = DateTime.parse(date);
+      return DateFormat('dd MMM, hh:mm a').format(parsed);
+    } catch (_) {
+      return "Unknown date";
+    }
   }
 
   // 🧠 Smart Action Labels
   String actionLabel(String action) {
     switch (action.toLowerCase()) {
-      case "add":
-        return "Stock Added";
-      case "remove":
-        return "Stock Removed";
-      case "update":
+      case "created":
+        return "Stock Created";
+
+      case "restocked":
+        return "Stock Restocked";
+
+      case "sold":
+        return "Stock Sold";
+
+      case "adjusted":
         return "Stock Updated";
+
       default:
-        return action;
+        return action.isEmpty ? "Stock Updated" : action;
     }
   }
 
@@ -50,18 +67,26 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Stock History")),
+      appBar: AppBar(
+        title: const Text("Stock History"),
+      ),
       body: FutureBuilder<List<dynamic>>(
         future: _history,
         builder: (context, snapshot) {
           // 🔄 Loading
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
           }
 
           // ❌ Error
           if (snapshot.hasError) {
-            return Center(child: Text("Error: ${snapshot.error}"));
+            return Center(
+              child: Text(
+                "Error: ${snapshot.error}",
+              ),
+            );
           }
 
           // ✅ Safe Data Handling
@@ -73,7 +98,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.history, size: 60, color: Colors.grey),
+                  Icon(
+                    Icons.history,
+                    size: 60,
+                    color: Colors.grey,
+                  ),
                   SizedBox(height: 10),
                   Text("No history yet"),
                 ],
@@ -88,11 +117,19 @@ class _HistoryScreenState extends State<HistoryScreen> {
               itemCount: data.length,
               itemBuilder: (_, index) {
                 final item = data[index];
+
                 final change = item["change"] ?? 0;
                 final isPositive = change > 0;
 
                 final note = item["note"];
-                final action = item["action"] ?? "";
+                final action = item["action"]?.toString() ?? "";
+
+                final userName =
+                    item["user_name"]?.toString() ?? "Unknown";
+
+                final userRole =
+                    item["user_role"]?.toString().toUpperCase() ??
+                        "UNKNOWN";
 
                 return Card(
                   elevation: 3,
@@ -102,41 +139,85 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   margin: const EdgeInsets.symmetric(vertical: 6),
                   child: ListTile(
                     contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 8),
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
 
-                    // 🟢🔴 ICON
+                    // 🟢🔴 STOCK CHANGE ICON
                     leading: CircleAvatar(
                       backgroundColor:
                           isPositive ? Colors.green : Colors.red,
                       child: Icon(
-                        isPositive ? Icons.add : Icons.remove,
+                        isPositive
+                            ? Icons.add
+                            : Icons.remove,
                         color: Colors.white,
                       ),
                     ),
 
-                    // 🔥 TITLE
+                    // 🔥 STOCK CHANGE
                     title: Text(
                       "${isPositive ? "+" : ""}$change units",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
-                        color:
-                            isPositive ? Colors.green : Colors.red,
+                        color: isPositive
+                            ? Colors.green
+                            : Colors.red,
                       ),
                     ),
 
-                    // 🧠 SUBTITLE (Smart Handling)
-                    subtitle: Text(
-                      (note != null && note.toString().isNotEmpty)
-                          ? "${actionLabel(action)} • $note"
-                          : actionLabel(action),
-                      style: const TextStyle(fontSize: 13),
+                    // 🧠 ACTION + USER
+                    subtitle: Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                      children: [
+                        // Action + note
+                        Text(
+                          (note != null &&
+                                  note.toString().isNotEmpty)
+                              ? "${actionLabel(action)} • $note"
+                              : actionLabel(action),
+                          style: const TextStyle(
+                            fontSize: 13,
+                          ),
+                        ),
+
+                        const SizedBox(height: 4),
+
+                        // 👤 User
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.person_outline,
+                              size: 14,
+                              color: Colors.grey,
+                            ),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                "$userName • $userRole",
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
 
                     // 🕒 DATE
                     trailing: Text(
-                      formatDate(item["created_at"]),
-                      style: const TextStyle(fontSize: 12),
+                      formatDate(
+                        item["created_at"]?.toString(),
+                      ),
+                      style: const TextStyle(
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                 );

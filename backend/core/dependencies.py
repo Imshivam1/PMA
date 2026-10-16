@@ -1,8 +1,5 @@
-# =========================
-# 📦 IMPORTS
-# =========================
 from fastapi import Depends, HTTPException
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
 from sqlalchemy.orm import Session
 
@@ -12,10 +9,12 @@ from core.config import get_settings
 
 settings = get_settings()
 
+
 # =========================
-# TOKEN SCHEME (OAuth2)
+# TOKEN SCHEME (BEARER)
 # =========================
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+bearer_scheme = HTTPBearer()
+
 
 # =========================
 # DB DEPENDENCY
@@ -32,29 +31,39 @@ def get_db():
 # GET CURRENT USER
 # =========================
 def get_current_user(
-    token: str = Depends(oauth2_scheme),
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     db: Session = Depends(get_db)
 ):
+    token = credentials.credentials
+
     try:
-        # Decode JWT
         payload = jwt.decode(
             token,
             settings.secret_key,
             algorithms=[settings.algorithm],
         )
+
         user_id = payload.get("user_id")
 
         if user_id is None:
-            raise HTTPException(status_code=401, detail="Invalid token")
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid token"
+            )
 
     except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid token"
+        )
 
-    # Fetch user from DB
     user = db.query(User).filter(User.id == user_id).first()
 
     if user is None:
-        raise HTTPException(status_code=401, detail="User not found")
+        raise HTTPException(
+            status_code=401,
+            detail="User not found"
+        )
 
     return user
 
@@ -72,7 +81,7 @@ def owner_required(current_user: User = Depends(get_current_user)):
 
 
 # =========================
-#  MANAGER OR OWNER ACCESS
+# MANAGER OR OWNER ACCESS
 # =========================
 def manager_required(current_user: User = Depends(get_current_user)):
     if current_user.role not in ["manager", "owner"]:
