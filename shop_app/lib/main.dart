@@ -15,12 +15,8 @@ class ShopPOSApp extends StatelessWidget {
     return MaterialApp(
       title: 'Shop POS',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: Colors.indigo,
-      ),
+      theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.indigo),
 
-      
       home: FutureBuilder(
         future: ApiService.loadAuth(),
         builder: (context, snapshot) {
@@ -34,9 +30,7 @@ class ShopPOSApp extends StatelessWidget {
           final isLoggedIn = snapshot.data ?? false;
 
           // 🔐 Auto navigation
-          return isLoggedIn
-              ? const InventoryScreen()
-              : const LoginScreen();
+          return isLoggedIn ? const InventoryScreen() : const LoginScreen();
         },
       ),
     );

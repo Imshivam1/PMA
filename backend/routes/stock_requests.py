@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+
 from database import SessionLocal
 from models import StockRequest, Product
 from core.dependencies import manager_required, owner_required
@@ -16,64 +17,145 @@ def get_db():
         db.close()
 
 
-# Manager creates request
+# Manager creates a stock request
 @router.post("/", response_model=StockRequestResponse)
 def create_request(
     request: StockRequestCreate,
     user=Depends(manager_required),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
+    # Ensure the requested product belongs to this manager's owner
+    owner_id = user.owner_id
+
+    product = db.query(Product).filter(
+        Product.id == request.product_id,
+        Product.owner_id == owner_id,
+    ).first()
+
+    if not product:
+        raise HTTPException(
+            status_code=404,
+            detail="Product not found",
+        )
+
+    if request.quantity <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Quantity must be greater than zero",
+        )
+
     stock_request = StockRequest(
-        product_id=request.product_id,
+        product_id=product.id,
         quantity=request.quantity,
         manager_id=user.id,
-        status="pending"
+        status="pending",
     )
 
     db.add(stock_request)
     db.commit()
     db.refresh(stock_request)
 
-    return stock_request
+    return {
+    "id": stock_request.id,
+    "product_id": stock_request.product_id,
+    "product_name": product.name,
+    "quantity": stock_request.quantity,
+    "status": stock_request.status,
+    "manager_id": stock_request.manager_id,
+}
 
-#owner view request
+
+# Owner sees requests from their managers.
+# Manager sees only their own requests.
 @router.get("/", response_model=list[StockRequestResponse])
 def get_requests(
-    user=Depends(owner_required),
-    db: Session = Depends(get_db)
+    user=Depends(manager_required),
+    db: Session = Depends(get_db),
 ):
-    return db.query(StockRequest).all()
+    query = db.query(StockRequest, Product).join(
+        Product,
+        StockRequest.product_id == Product.id,
+    )
 
-#approve/reject
+    if user.role == "manager":
+        query = query.filter(
+            StockRequest.manager_id == user.id
+        )
+    else:
+        query = query.filter(
+            Product.owner_id == user.id
+        )
+    rows = query.order_by(
+        StockRequest.id.desc()
+    ).all()
+
+
+    return [
+        {
+            "id": request.id,
+            "product_id": request.product_id,
+            "product_name": product.name,
+            "quantity": request.quantity,
+            "status": request.status,
+            "manager_id": request.manager_id,
+        }
+        for request, product in rows
+    ]
+
+
+# Only the Owner can approve or reject a request
 @router.put("/{request_id}")
 def update_request(
     request_id: int,
     status: str,
     user=Depends(owner_required),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
-    stock_request = db.query(StockRequest).filter(StockRequest.id == request_id).first()
+    stock_request = (
+        db.query(StockRequest)
+        .join(
+            Product,
+            StockRequest.product_id == Product.id,
+        )
+        .filter(
+            StockRequest.id == request_id,
+            Product.owner_id == user.id,
+        )
+        .first()
+    )
 
     if not stock_request:
-        raise HTTPException(status_code=404, detail="Request not found")
+        raise HTTPException(
+            status_code=404,
+            detail="Request not found",
+        )
 
-    # Prevent double processing
     if stock_request.status != "pending":
-        raise HTTPException(status_code=400, detail="Request already processed")
+        raise HTTPException(
+            status_code=400,
+            detail="Request already processed",
+        )
 
-    # Validate status
     if status not in ["approved", "rejected"]:
-        raise HTTPException(status_code=400, detail="Invalid status")
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid status",
+        )
 
-    # If approved → update stock
     if status == "approved":
-        product = db.query(Product).filter(Product.id == stock_request.product_id).first()
+        product = stock_request.product
 
         if not product:
-            raise HTTPException(status_code=404, detail="Product not found")
+            raise HTTPException(
+                status_code=404,
+                detail="Product not found",
+            )
 
         if product.stock < stock_request.quantity:
-            raise HTTPException(status_code=400, detail="Not enough stock")
+            raise HTTPException(
+                status_code=400,
+                detail="Not enough stock",
+            )
 
         product.stock -= stock_request.quantity
 

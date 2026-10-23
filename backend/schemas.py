@@ -31,6 +31,7 @@ class StockRequestCreate(BaseModel):
 class StockRequestResponse(BaseModel):
     id: int
     product_id: int
+    product_name:str
     quantity: int
     status: str
     manager_id: int
